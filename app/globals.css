@@ -1,0 +1,161 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   AURUM ENTONET — design tokens
+   Primary identity: deep purple + ivory + obsidian black
+   Secondary: earth / sand
+   Accent: restrained gold (used sparingly)
+   ========================================================================== */
+
+:root {
+  /* -- raw brand palette (fixed — does not respond to system light/dark) -- */
+  --aurum-deep: #241338;
+  --aurum-plum: #3b1d4f;
+  --aurum-lavender: #d8c5e8;
+  --aurum-ivory: #f7f1e8;
+  --aurum-obsidian: #09070b;
+  --aurum-earth: #5a3a2a;
+  --aurum-sand: #d7c1a3;
+  --aurum-gold: #c6a15b;
+
+  /* -- semantic surface tokens (light / default) -- */
+  --background: var(--aurum-ivory);
+  --foreground: var(--aurum-obsidian);
+  --surface: #ffffff;
+  --surface-muted: #efe7d9;
+  --border-subtle: rgba(9, 7, 11, 0.1);
+  --border-strong: rgba(9, 7, 11, 0.22);
+
+  /* -- inverse (dark section) surface tokens -- */
+  --background-inverse: var(--aurum-obsidian);
+  --foreground-inverse: var(--aurum-ivory);
+  --surface-inverse: var(--aurum-deep);
+  --border-inverse: rgba(247, 241, 232, 0.16);
+
+  /* -- motion tokens -- */
+  --ease-luxury: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-in-out-editorial: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 300ms;
+  --duration-base: 550ms;
+  --duration-slow: 900ms;
+
+  /* -- layout tokens -- */
+  --container-max: 1600px;
+  --gutter: clamp(1.25rem, 4vw, 3.5rem);
+
+  /* -- section rhythm (consistent vertical spacing instead of ad-hoc py-* per section) -- */
+  --spacing-section-sm: clamp(3rem, 6vw, 5rem);
+  --spacing-section: clamp(4.5rem, 9vw, 8rem);
+  --spacing-section-lg: clamp(6rem, 12vw, 11rem);
+
+  /* -- elevation: restrained by design — used only for true floating overlays
+     (mega-menu panel, cart drawer), never on cards/buttons -- */
+  --shadow-float: 0 32px 64px -32px rgba(9, 7, 11, 0.45);
+
+  /* -- z-index scale -- */
+  --z-base: 0;
+  --z-nav: 40;
+  --z-cursor: 50;
+  --z-drawer: 60;
+  --z-preloader: 100;
+  --z-transition: 90;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+
+  --color-aurum-deep: var(--aurum-deep);
+  --color-aurum-plum: var(--aurum-plum);
+  --color-aurum-lavender: var(--aurum-lavender);
+  --color-aurum-ivory: var(--aurum-ivory);
+  --color-aurum-obsidian: var(--aurum-obsidian);
+  --color-aurum-earth: var(--aurum-earth);
+  --color-aurum-sand: var(--aurum-sand);
+  --color-aurum-gold: var(--aurum-gold);
+
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-archivo);
+
+  --spacing-section-sm: var(--spacing-section-sm);
+  --spacing-section: var(--spacing-section);
+  --spacing-section-lg: var(--spacing-section-lg);
+
+  --shadow-float: var(--shadow-float);
+
+  /* Aurum is a quiet-luxury editorial mark, not a SaaS product — every corner
+     across the site collapses to zero by default. --radius-full is left at
+     Tailwind's default so circular elements (badges, the cursor dot, avatars)
+     are unaffected; nothing else should ever round a corner. */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+}
+
+* {
+  border-color: var(--border-subtle);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-aurum-deep);
+  color: var(--color-aurum-ivory);
+}
+
+/* focus states — never sacrificed for aesthetics */
+:focus-visible {
+  outline: 2px solid var(--color-aurum-gold);
+  outline-offset: 3px;
+}
+
+.container-aurum {
+  width: 100%;
+  max-width: var(--container-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* editorial hairline rule used across sections */
+.hairline {
+  height: 1px;
+  background: var(--border-subtle);
+}
