@@ -3,10 +3,9 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useState } from "react";
-import { categories } from "@/data/categories";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { easeLuxury } from "@/lib/motion";
-import type { ImageRef } from "@/lib/types";
+import type { Category, ImageRef } from "@/lib/types";
 
 const QUICK_LINKS = [
   { label: "New Arrivals", href: "/shop?sort=new" },
@@ -19,8 +18,16 @@ const QUICK_LINKS = [
  * mouse leave, Escape, or navigation. Never used on mobile — MenuOverlay carries the
  * equivalent category list there.
  */
-export function MegaMenu({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const [hovered, setHovered] = useState<ImageRef>(categories[0].image);
+export function MegaMenu({
+  open,
+  onClose,
+  categories,
+}: {
+  open: boolean;
+  onClose: () => void;
+  categories: Category[];
+}) {
+  const [hovered, setHovered] = useState<ImageRef | null>(categories[0]?.image ?? null);
 
   return (
     <AnimatePresence>
@@ -74,16 +81,18 @@ export function MegaMenu({ open, onClose }: { open: boolean; onClose: () => void
 
             <div className="relative aspect-[4/3] w-full overflow-hidden">
               <AnimatePresence mode="wait">
-                <motion.div
-                  key={hovered.id}
-                  className="absolute inset-0"
-                  initial={{ opacity: 0, scale: 1.03 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.4, ease: easeLuxury }}
-                >
-                  <EditorialImage image={hovered} className="h-full w-full" />
-                </motion.div>
+                {hovered && (
+                  <motion.div
+                    key={hovered.id}
+                    className="absolute inset-0"
+                    initial={{ opacity: 0, scale: 1.03 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.4, ease: easeLuxury }}
+                  >
+                    <EditorialImage image={hovered} className="h-full w-full" />
+                  </motion.div>
+                )}
               </AnimatePresence>
             </div>
           </div>

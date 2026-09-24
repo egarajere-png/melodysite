@@ -27,11 +27,13 @@ export interface CollectionSummary {
 }
 
 export interface ImageRef {
-  /** Abstract image reference — resolved by <EditorialImage> to a placeholder or, later, a real asset URL. */
+  /** Abstract image reference — resolved by <EditorialImage> to a placeholder, or a real photo when `url` is set. */
   id: string;
   alt: string;
   kind?: "product" | "worn" | "editorial";
   tone?: "ivory" | "deep" | "plum" | "sand" | "obsidian" | "earth";
+  /** Public URL of a real uploaded photo. When present, <EditorialImage> renders this instead of the placeholder. */
+  url?: string;
 }
 
 export interface VariantOption {

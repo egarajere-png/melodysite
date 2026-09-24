@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { fraunces, archivo } from "@/lib/fonts";
 import { SiteShell } from "@/components/layout/SiteShell";
+import { getActiveCategories } from "@/lib/supabase/catalogue";
 
 const siteUrl = "https://aurumentonet.co.ke";
 
@@ -29,7 +30,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const categories = await getActiveCategories();
   return (
     <html lang="en" className={`${fraunces.variable} ${archivo.variable}`}>
       <body className="bg-aurum-ivory text-aurum-obsidian antialiased">
@@ -39,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to content
         </a>
-        <SiteShell>{children}</SiteShell>
+        <SiteShell categories={categories}>{children}</SiteShell>
       </body>
     </html>
   );

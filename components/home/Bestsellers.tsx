@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getBestsellers, effectivePrice } from "@/data/products";
+import { getBestsellers } from "@/lib/supabase/catalogue";
+import { effectivePrice } from "@/lib/product";
 import { RevealText } from "@/components/motion/RevealText";
 import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerChildren";
 import { EditorialImage } from "@/components/ui/EditorialImage";
@@ -10,8 +11,8 @@ import { formatKES } from "@/lib/format";
  * reads as an editorial "top picks" list: large index numerals, a small thumbnail,
  * full-bleed hairline rules between rows.
  */
-export function Bestsellers() {
-  const bestsellers = getBestsellers(4);
+export async function Bestsellers() {
+  const bestsellers = await getBestsellers(4);
 
   return (
     <section className="border-t border-[var(--border-subtle)] bg-aurum-ivory py-section">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Product, ProductVariant } from "@/lib/types";
-import { effectivePrice } from "@/data/products";
+import { effectivePrice } from "@/lib/product";
 import { formatKES } from "@/lib/format";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { AccordionItem } from "@/components/motion/SmoothAccordion";

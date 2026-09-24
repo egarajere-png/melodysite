@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { categories } from "@/data/categories";
+import { getActiveCategories } from "@/lib/supabase/catalogue";
 import { RevealText } from "@/components/motion/RevealText";
 import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerChildren";
 import { ScaleOnHover } from "@/components/motion/ScaleOnHover";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 
-export function ShopByCategory() {
+export async function ShopByCategory() {
+  const categories = await getActiveCategories();
   return (
     <section className="bg-aurum-ivory pb-section">
       <div className="container-aurum">

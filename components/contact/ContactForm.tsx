@@ -26,12 +26,15 @@ export function ContactForm() {
     setStatus("submitting");
     setError(null);
 
-    // TODO: wire to real inquiry endpoint / email service once backend is connected.
-    // Simulated latency only — no data is sent anywhere yet.
-    await new Promise((resolve) => setTimeout(resolve, 600));
-
-    setStatus("success");
-    e.currentTarget.reset();
+    try {
+      const response = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, message, phone: String(formData.get("phone") ?? ""), subject: String(formData.get("subject") ?? "") }) });
+      if (!response.ok) throw new Error();
+      setStatus("success");
+      e.currentTarget.reset();
+    } catch {
+      setError("We could not send your message right now. Please try again shortly.");
+      setStatus("error");
+    }
   }
 
   if (status === "success") {

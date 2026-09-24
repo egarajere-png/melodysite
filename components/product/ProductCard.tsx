@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { Product } from "@/lib/types";
-import { effectivePrice, totalStock } from "@/data/products";
+import { effectivePrice, totalStock } from "@/lib/product";
 import { formatKES } from "@/lib/format";
 import { HoverImageSwap } from "@/components/motion/HoverImageSwap";
 import { useCart } from "@/context/CartContext";

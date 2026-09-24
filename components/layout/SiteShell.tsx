@@ -10,8 +10,9 @@ import { Preloader } from "@/components/layout/Preloader";
 import { CartDrawer } from "@/components/cart/CartDrawer";
 import { PageTransition } from "@/components/motion/PageTransition";
 import { Footer } from "@/components/layout/Footer";
+import type { Category } from "@/lib/types";
 
-export function SiteShell({ children }: { children: ReactNode }) {
+export function SiteShell({ children, categories }: { children: ReactNode; categories: Category[] }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = usePathname();
 
@@ -25,8 +26,8 @@ export function SiteShell({ children }: { children: ReactNode }) {
     <CartProvider>
       <Preloader />
       <CustomCursor />
-      <Navbar onOpenMenu={() => setMenuOpen(true)} />
-      <MenuOverlay open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <Navbar onOpenMenu={() => setMenuOpen(true)} categories={categories} />
+      <MenuOverlay open={menuOpen} onClose={() => setMenuOpen(false)} categories={categories} />
       <CartDrawer />
       <main id="main-content" className="flex min-h-dvh flex-col">
         <PageTransition>{children}</PageTransition>

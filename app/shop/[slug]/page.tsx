@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getProduct, getProductsByCategory, products, effectivePrice } from "@/data/products";
+import { getProductBySlug, getProducts, getAllProductSlugs } from "@/lib/supabase/catalogue";
+import { effectivePrice } from "@/lib/product";
 import { ProductDetailClient } from "@/components/product/ProductDetailClient";
 import { ProductCard } from "@/components/product/ProductCard";
 import { RevealText } from "@/components/motion/RevealText";
 
-export function generateStaticParams() {
-  return products.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  const slugs = await getAllProductSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProduct(slug);
+  const product = await getProductBySlug(slug);
   if (!product) return {};
 
   return {
@@ -29,10 +31,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const product = getProduct(slug);
+  const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const related = getProductsByCategory(product.category)
+  const related = (await getProducts({ category: product.category }))
     .filter((p) => p.id !== product.id)
     .slice(0, 4);
 

@@ -6,13 +6,14 @@ import { Menu, Search, ShoppingBag, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { MegaMenu } from "@/components/layout/MegaMenu";
+import type { Category } from "@/lib/types";
 
 const NAV_LINKS = [
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
 
-export function Navbar({ onOpenMenu }: { onOpenMenu: () => void }) {
+export function Navbar({ onOpenMenu, categories }: { onOpenMenu: () => void; categories: Category[] }) {
   const pathname = usePathname();
   const { count, openCart } = useCart();
   const [scrolled, setScrolled] = useState(false);
@@ -111,7 +112,7 @@ export function Navbar({ onOpenMenu }: { onOpenMenu: () => void }) {
       </div>
 
       <div onMouseEnter={openShop} onMouseLeave={scheduleCloseShop}>
-        <MegaMenu open={shopOpen} onClose={() => setShopOpen(false)} />
+        <MegaMenu open={shopOpen} onClose={() => setShopOpen(false)} categories={categories} />
       </div>
     </header>
   );

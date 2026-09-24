@@ -1,9 +1,9 @@
-import { getNewArrivals } from "@/data/products";
+import { getNewArrivals } from "@/lib/supabase/catalogue";
 import { RevealText } from "@/components/motion/RevealText";
 import { ProductCard } from "@/components/product/ProductCard";
 
-export function HotArrivals() {
-  const arrivals = getNewArrivals(8);
+export async function HotArrivals() {
+  const arrivals = await getNewArrivals(8);
 
   return (
     <section className="border-t border-[var(--border-subtle)] bg-aurum-ivory py-section">

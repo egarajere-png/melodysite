@@ -1,15 +1,14 @@
-import { getActiveDeal } from "@/data/deals";
-import { products } from "@/data/products";
+import { getActiveDeal, getProducts } from "@/lib/supabase/catalogue";
 import { RevealText } from "@/components/motion/RevealText";
 import { ProductCard } from "@/components/product/ProductCard";
 import { CountdownTimer } from "@/components/ui/CountdownTimer";
 import { formatDate } from "@/lib/format";
 
-export function DealOfTheWeek() {
-  const deal = getActiveDeal();
+export async function DealOfTheWeek() {
+  const deal = await getActiveDeal();
   if (!deal) return null;
 
-  const dealProducts = products.filter((p) => deal.productIds.includes(p.id));
+  const dealProducts = (await getProducts({ dealOnly: true })).filter((p) => deal.productIds.includes(p.id));
 
   return (
     <section className="bg-aurum-sand/30 py-section">

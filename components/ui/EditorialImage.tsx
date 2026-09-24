@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { ImageRef } from "@/lib/types";
 
 /**
@@ -123,7 +124,14 @@ export function EditorialImage({
   className?: string;
   priority?: boolean;
 }) {
-  void priority; // reserved for when real <Image> sources replace this placeholder
+  if (image.url) {
+    return (
+      <div className={`relative isolate overflow-hidden ${className}`}>
+        <Image src={image.url} alt={image.alt} fill priority={priority} className="object-cover" />
+      </div>
+    );
+  }
+
   const tone = image.tone ?? "sand";
   const kind = image.kind ?? "editorial";
   const isLight = LIGHT_TONES.has(tone);

@@ -5,8 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { EditorialImage } from "@/components/ui/EditorialImage";
-import { categories } from "@/data/categories";
-import type { ImageRef } from "@/lib/types";
+import type { Category, ImageRef } from "@/lib/types";
 import { easeEditorial } from "@/lib/motion";
 
 const MENU_ITEMS: { label: string; href: string; preview: ImageRef }[] = [
@@ -18,7 +17,15 @@ const MENU_ITEMS: { label: string; href: string; preview: ImageRef }[] = [
   { label: "Deals", href: "/shop?deal=true", preview: { id: "menu-deals", alt: "The Aurum Edit", kind: "editorial", tone: "ivory" } },
 ];
 
-export function MenuOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function MenuOverlay({
+  open,
+  onClose,
+  categories,
+}: {
+  open: boolean;
+  onClose: () => void;
+  categories: Category[];
+}) {
   const [hovered, setHovered] = useState<ImageRef | null>(null);
 
   return (
