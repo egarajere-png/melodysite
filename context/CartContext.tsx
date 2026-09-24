@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import type { ImageRef } from "@/lib/types";
+import { addToCartAction, updateCartQuantityAction, removeCartItemAction, clearCartAction } from "@/app/actions/cart";
 
 export interface CartLine {
   productId: string;
@@ -18,8 +19,13 @@ export interface CartLine {
 interface CartContextValue {
   lines: CartLine[];
   isOpen: boolean;
+  isAuthenticated: boolean;
+  isPending: boolean;
+  signInRequired: boolean;
+  error: string | null;
   openCart: () => void;
   closeCart: () => void;
+  dismissSignInPrompt: () => void;
   addLine: (line: Omit<CartLine, "quantity">, quantity?: number) => void;
   updateQuantity: (variantId: string, quantity: number) => void;
   removeLine: (variantId: string) => void;
@@ -30,71 +36,89 @@ interface CartContextValue {
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
-const STORAGE_KEY = "aurum-cart-v1";
 
-export function CartProvider({ children }: { children: ReactNode }) {
-  const [lines, setLines] = useState<CartLine[]>([]);
+/**
+ * The cart is Supabase-backed and requires an authenticated customer (the schema's
+ * `carts.customer_id` is not-null — there's no guest-cart concept). Mutations call
+ * server actions that re-derive price and available stock themselves; whatever this
+ * component passes in for those fields is only used for the instant local "Added"
+ * flash, never trusted as the source of truth — `lines` is always replaced by
+ * whatever the server actually persisted right after.
+ */
+export function CartProvider({
+  children,
+  isAuthenticated,
+  initialLines,
+}: {
+  children: ReactNode;
+  isAuthenticated: boolean;
+  initialLines: CartLine[];
+}) {
+  const [lines, setLines] = useState<CartLine[]>(initialLines);
   const [isOpen, setIsOpen] = useState(false);
   const [lastAdded, setLastAdded] = useState<CartLine | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const [signInRequired, setSignInRequired] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      // localStorage only exists client-side, so hydrating the cart from it
-      // must happen in this effect, after the empty-cart initial render.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setLines(JSON.parse(raw));
-    } catch {
-      // ignore corrupted/blocked storage — cart simply starts empty
+  function addLine(line: Omit<CartLine, "quantity">, quantity = 1) {
+    if (!isAuthenticated) {
+      setSignInRequired(true);
+      setIsOpen(true);
+      return;
     }
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(lines));
-    } catch {
-      // storage unavailable (private browsing, quota) — cart still works for this session
-    }
-  }, [lines, hydrated]);
-
-  const addLine = useCallback((line: Omit<CartLine, "quantity">, quantity = 1) => {
-    setLines((prev) => {
-      const existing = prev.find((l) => l.variantId === line.variantId);
-      if (existing) {
-        const nextQty = Math.min(existing.quantity + quantity, existing.maxStock);
-        return prev.map((l) => (l.variantId === line.variantId ? { ...l, quantity: nextQty } : l));
-      }
-      return [...prev, { ...line, quantity: Math.min(quantity, line.maxStock) }];
-    });
+    setError(null);
+    setSignInRequired(false);
     setLastAdded({ ...line, quantity });
     setIsOpen(true);
-  }, []);
+    startTransition(async () => {
+      const result = await addToCartAction(line.variantId, quantity);
+      if (result.ok) setLines(result.lines);
+      else {
+        setError(result.error);
+        if (result.signInRequired) setSignInRequired(true);
+      }
+    });
+  }
 
-  const updateQuantity = useCallback((variantId: string, quantity: number) => {
-    setLines((prev) =>
-      prev
-        .map((l) => (l.variantId === variantId ? { ...l, quantity: Math.max(0, Math.min(quantity, l.maxStock)) } : l))
-        .filter((l) => l.quantity > 0)
-    );
-  }, []);
+  function updateQuantity(variantId: string, quantity: number) {
+    setError(null);
+    startTransition(async () => {
+      const result = await updateCartQuantityAction(variantId, quantity);
+      if (result.ok) setLines(result.lines);
+      else setError(result.error);
+    });
+  }
 
-  const removeLine = useCallback((variantId: string) => {
-    setLines((prev) => prev.filter((l) => l.variantId !== variantId));
-  }, []);
+  function removeLine(variantId: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await removeCartItemAction(variantId);
+      if (result.ok) setLines(result.lines);
+      else setError(result.error);
+    });
+  }
 
-  const clearCart = useCallback(() => setLines([]), []);
+  function clearCart() {
+    startTransition(async () => {
+      await clearCartAction();
+      setLines([]);
+    });
+  }
 
-  const subtotal = useMemo(() => lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0), [lines]);
-  const count = useMemo(() => lines.reduce((sum, l) => sum + l.quantity, 0), [lines]);
+  const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
+  const count = lines.reduce((sum, l) => sum + l.quantity, 0);
 
   const value: CartContextValue = {
     lines,
     isOpen,
+    isAuthenticated,
+    isPending,
+    signInRequired,
+    error,
     openCart: () => setIsOpen(true),
     closeCart: () => setIsOpen(false),
+    dismissSignInPrompt: () => setSignInRequired(false),
     addLine,
     updateQuantity,
     removeLine,

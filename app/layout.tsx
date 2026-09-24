@@ -3,6 +3,10 @@ import "./globals.css";
 import { fraunces, archivo } from "@/lib/fonts";
 import { SiteShell } from "@/components/layout/SiteShell";
 import { getActiveCategories } from "@/lib/supabase/catalogue";
+import { getCartLines } from "@/lib/supabase/cart";
+import { getWishlistProductIds } from "@/lib/supabase/wishlist";
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 const siteUrl = "https://aurumentonet.co.ke";
 
@@ -31,7 +35,13 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const categories = await getActiveCategories();
+  const user = isSupabaseConfigured() ? (await (await createClient()).auth.getUser()).data.user : null;
+  const [categories, initialCartLines, initialWishlistIds] = await Promise.all([
+    getActiveCategories(),
+    user ? getCartLines(user.id) : Promise.resolve([]),
+    user ? getWishlistProductIds(user.id) : Promise.resolve([]),
+  ]);
+
   return (
     <html lang="en" className={`${fraunces.variable} ${archivo.variable}`}>
       <body className="bg-aurum-ivory text-aurum-obsidian antialiased">
@@ -41,7 +51,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         >
           Skip to content
         </a>
-        <SiteShell categories={categories}>{children}</SiteShell>
+        <SiteShell
+          categories={categories}
+          isAuthenticated={Boolean(user)}
+          initialCartLines={initialCartLines}
+          initialWishlistIds={initialWishlistIds}
+        >
+          {children}
+        </SiteShell>
       </body>
     </html>
   );

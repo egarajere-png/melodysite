@@ -21,10 +21,17 @@ export default async function AccountPage() {
           <RevealText as="h1" text={user ? `Welcome, ${user.user_metadata.full_name?.split(" ")[0] ?? "Aurum customer"}.` : "Your Aurum account."} className="font-display text-4xl leading-[1.05] sm:text-6xl" />
           <FadeIn delay={0.3}>
             <p className="mt-6 max-w-md text-sm leading-relaxed text-aurum-obsidian/70 sm:text-base">
-              {user ? "Your secure account is connected. Orders, addresses, wishlist and notifications will appear here as each data area is integrated." : "Sign in securely to save your addresses, wishlists and order history."}
+              {user ? "Your secure account is connected. Addresses and notifications will appear here as each data area is integrated." : "Sign in securely to save your addresses, wishlists and order history."}
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              {user ? <MagneticButton><Link href="/orders" data-cursor="view" className="inline-flex items-center bg-aurum-deep px-8 py-4 text-xs uppercase tracking-[0.2em] text-aurum-ivory transition-colors hover:bg-aurum-plum">View Orders</Link></MagneticButton> : <GoogleAuthButton />}
+              {user ? (
+                <>
+                  <MagneticButton><Link href="/orders" data-cursor="view" className="inline-flex items-center bg-aurum-deep px-8 py-4 text-xs uppercase tracking-[0.2em] text-aurum-ivory transition-colors hover:bg-aurum-plum">View Orders</Link></MagneticButton>
+                  <MagneticButton><Link href="/wishlist" data-cursor="view" className="inline-flex items-center border border-aurum-obsidian/30 px-8 py-4 text-xs uppercase tracking-[0.2em] transition-colors hover:border-aurum-obsidian">Wishlist</Link></MagneticButton>
+                </>
+              ) : (
+                <GoogleAuthButton />
+              )}
               <MagneticButton>
                 <Link
                   href="/contact"

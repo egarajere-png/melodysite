@@ -4,11 +4,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { EditorialImage } from "@/components/ui/EditorialImage";
+import { GoogleAuthButton } from "@/components/account/GoogleAuthButton";
 import { formatKES } from "@/lib/format";
 import { easeSoft } from "@/lib/motion";
 
 export function CartDrawer() {
-  const { lines, isOpen, closeCart, updateQuantity, removeLine, subtotal } = useCart();
+  const { lines, isOpen, closeCart, updateQuantity, removeLine, subtotal, signInRequired, error } = useCart();
 
   return (
     <AnimatePresence>
@@ -43,7 +44,17 @@ export function CartDrawer() {
               </button>
             </div>
 
-            {lines.length === 0 ? (
+            {error && <p className="px-6 pt-4 text-sm text-aurum-earth">{error}</p>}
+
+            {signInRequired ? (
+              <div className="flex flex-1 flex-col items-center justify-center gap-5 px-6 text-center">
+                <p className="font-display text-xl">Sign in to start your bag.</p>
+                <p className="max-w-xs text-sm text-aurum-obsidian/60">
+                  Your bag is saved to your account, so it&apos;s there whenever you come back.
+                </p>
+                <GoogleAuthButton />
+              </div>
+            ) : lines.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
                 <p className="text-sm uppercase tracking-widest text-aurum-obsidian/60">Your bag is empty</p>
                 <Link

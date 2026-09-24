@@ -7,6 +7,7 @@ import { formatKES } from "@/lib/format";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { AccordionItem } from "@/components/motion/SmoothAccordion";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 import { useRouter } from "next/navigation";
 
 function matchVariant(product: Product, colour: string | undefined, size: string | undefined) {
@@ -17,6 +18,8 @@ function matchVariant(product: Product, colour: string | undefined, size: string
 
 export function ProductDetailClient({ product }: { product: Product }) {
   const { addLine, openCart } = useCart();
+  const { isWishlisted, toggle } = useWishlist();
+  const wishlisted = isWishlisted(product.id);
   const router = useRouter();
 
   const colours = useMemo(
@@ -230,6 +233,14 @@ export function ProductDetailClient({ product }: { product: Product }) {
           className="mt-3 w-full border border-aurum-obsidian px-8 py-4 text-xs uppercase tracking-[0.2em] transition-colors hover:bg-aurum-obsidian hover:text-aurum-ivory disabled:cursor-not-allowed disabled:opacity-40"
         >
           Buy Now
+        </button>
+
+        <button
+          onClick={() => toggle(product.id)}
+          aria-pressed={wishlisted}
+          className="mt-4 w-full text-center text-xs uppercase tracking-widest text-aurum-obsidian/60 underline-offset-4 transition-colors hover:text-aurum-obsidian hover:underline"
+        >
+          {wishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
         </button>
 
         <div className="mt-10">

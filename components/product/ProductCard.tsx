@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Heart } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { effectivePrice, totalStock } from "@/lib/product";
 import { formatKES } from "@/lib/format";
 import { HoverImageSwap } from "@/components/motion/HoverImageSwap";
 import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 
 export function ProductCard({ product, className = "" }: { product: Product; className?: string }) {
   const { addLine } = useCart();
+  const { isWishlisted, toggle } = useWishlist();
   const [justAdded, setJustAdded] = useState(false);
+  const wishlisted = isWishlisted(product.id);
   const inStock = totalStock(product) > 0;
   const onSale = typeof product.salePrice === "number";
 
@@ -36,13 +40,24 @@ export function ProductCard({ product, className = "" }: { product: Product; cla
 
   return (
     <div className={`group flex flex-col ${className}`}>
-      <Link href={`/shop/${product.slug}`} data-cursor="view" className="block">
-        <HoverImageSwap
-          primary={product.images[0]}
-          secondary={product.wornImage ?? product.images[1]}
-          className="aspect-[4/5] w-full"
-        />
-      </Link>
+      <div className="relative">
+        <Link href={`/shop/${product.slug}`} data-cursor="view" className="block">
+          <HoverImageSwap
+            primary={product.images[0]}
+            secondary={product.wornImage ?? product.images[1]}
+            className="aspect-[4/5] w-full"
+          />
+        </Link>
+        <button
+          onClick={() => toggle(product.id)}
+          aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+          aria-pressed={wishlisted}
+          data-cursor="expand"
+          className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center bg-aurum-ivory/85 backdrop-blur-sm transition-colors hover:bg-aurum-ivory"
+        >
+          <Heart size={15} strokeWidth={1.5} className={wishlisted ? "fill-aurum-earth text-aurum-earth" : "text-aurum-obsidian"} />
+        </button>
+      </div>
       <div className="mt-4 flex flex-col items-start gap-3 min-[420px]:flex-row min-[420px]:items-start min-[420px]:justify-between">
         <div className="min-w-0">
           <Link href={`/shop/${product.slug}`} className="font-display text-base leading-snug sm:text-lg">
