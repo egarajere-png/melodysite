@@ -87,6 +87,7 @@ async function toCartLine(variant: RawVariantRow, quantity: number): Promise<Car
     productId: variant.products.id,
     productSlug: variant.products.slug,
     variantId: variant.id,
+    sku: variant.sku,
     name: variant.products.name,
     variantLabel: variantLabel(variant),
     unitPrice: await effectiveUnitPrice(variant),

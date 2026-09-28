@@ -324,4 +324,16 @@ insert into public.deal_products (deal_id, product_id) select de.id, pr.id from 
 insert into public.deal_products (deal_id, product_id) select de.id, pr.id from public.deals de, public.products pr where de.title = 'The Aurum Edit' and pr.slug = 'nadra-ear-climber' on conflict do nothing;
 insert into public.deal_products (deal_id, product_id) select de.id, pr.id from public.deals de, public.products pr where de.title = 'The Aurum Edit' and pr.slug = 'jua-belly-ring' on conflict do nothing;
 
+-- Shipping zones/rates — illustrative placeholders, not from /data (no mock equivalent existed).
+insert into public.shipping_zones (name, country_codes, is_international) values
+  ('Nairobi', array['KE'], false),
+  ('Rest of Kenya', array['KE'], false)
+on conflict (name) do nothing;
+insert into public.shipping_rates (shipping_zone_id, name, amount)
+  select id, 'Standard Delivery', 300 from public.shipping_zones where name = 'Nairobi'
+  on conflict do nothing;
+insert into public.shipping_rates (shipping_zone_id, name, amount)
+  select id, 'Standard Delivery', 500 from public.shipping_zones where name = 'Rest of Kenya'
+  on conflict do nothing;
+
 commit;

@@ -8,6 +8,7 @@ export interface CartLine {
   productId: string;
   productSlug: string;
   variantId: string;
+  sku: string;
   name: string;
   variantLabel: string;
   unitPrice: number;

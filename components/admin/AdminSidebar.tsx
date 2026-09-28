@@ -12,7 +12,12 @@ import {
   Users,
   Mail,
   ArrowLeft,
+  Receipt,
+  History,
+  FileText,
+  LogOut,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -23,10 +28,22 @@ const NAV = [
   { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/admin/customers", label: "Customers", icon: Users },
   { href: "/admin/inquiries", label: "Inquiries", icon: Mail },
+  { href: "/admin/expenses", label: "Expenses", icon: Receipt },
+  { href: "/admin/content", label: "Content", icon: FileText },
+  { href: "/admin/audit-logs", label: "Audit Log", icon: History },
 ];
 
 export function AdminSidebar() {
   const pathname = usePathname();
+
+  async function handleSignOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    // A full navigation, not router.push — verified via testing that router.push
+    // right after an auth state change can outrun the session cookie being cleared,
+    // so the very next request still reads the old session.
+    window.location.href = "/admin/login";
+  }
 
   return (
     <aside className="flex w-64 shrink-0 flex-col justify-between bg-aurum-obsidian text-aurum-ivory">
@@ -62,6 +79,13 @@ export function AdminSidebar() {
           <ArrowLeft size={16} strokeWidth={1.5} />
           View Store
         </Link>
+        <button
+          onClick={handleSignOut}
+          className="flex w-full items-center gap-3 rounded-sm px-3 py-2.5 text-sm text-aurum-ivory/60 transition-colors hover:bg-aurum-ivory/5 hover:text-aurum-ivory"
+        >
+          <LogOut size={16} strokeWidth={1.5} />
+          Sign Out
+        </button>
       </div>
     </aside>
   );

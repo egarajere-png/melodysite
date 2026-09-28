@@ -1,7 +1,9 @@
-import { customers } from "@/data/customers";
+import { getAdminCustomers } from "@/lib/supabase/customers-admin";
 import { formatKES, formatDate } from "@/lib/format";
 
-export default function AdminCustomersPage() {
+export default async function AdminCustomersPage() {
+  const customers = await getAdminCustomers();
+
   return (
     <div>
       <h1 className="mb-8 font-display text-3xl">Customers</h1>
@@ -18,18 +20,26 @@ export default function AdminCustomersPage() {
             </tr>
           </thead>
           <tbody>
-            {customers.map((c) => (
-              <tr key={c.id} className="border-b border-aurum-obsidian/5 last:border-0 hover:bg-aurum-ivory/60">
-                <td className="px-4 py-3">{c.name}</td>
-                <td className="px-4 py-3 text-aurum-obsidian/60">
-                  <p>{c.email}</p>
-                  {c.phone && <p className="text-xs">{c.phone}</p>}
+            {customers.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="px-4 py-8 text-center text-aurum-obsidian/50">
+                  No customers yet.
                 </td>
-                <td className="px-4 py-3">{c.totalOrders}</td>
-                <td className="px-4 py-3">{formatKES(c.totalSpend)}</td>
-                <td className="px-4 py-3 text-aurum-obsidian/60">{c.lastOrderAt ? formatDate(c.lastOrderAt) : "—"}</td>
               </tr>
-            ))}
+            ) : (
+              customers.map((c) => (
+                <tr key={c.id} className="border-b border-aurum-obsidian/5 last:border-0 hover:bg-aurum-ivory/60">
+                  <td className="px-4 py-3">{c.name}</td>
+                  <td className="px-4 py-3 text-aurum-obsidian/60">
+                    <p>{c.email ?? "—"}</p>
+                    {c.phone && <p className="text-xs">{c.phone}</p>}
+                  </td>
+                  <td className="px-4 py-3">{c.totalOrders}</td>
+                  <td className="px-4 py-3">{formatKES(c.totalSpend)}</td>
+                  <td className="px-4 py-3 text-aurum-obsidian/60">{c.lastOrderAt ? formatDate(c.lastOrderAt) : "—"}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

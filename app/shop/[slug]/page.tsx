@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getProductBySlug, getProducts, getAllProductSlugs } from "@/lib/supabase/catalogue";
+import { getProductBySlug, getProducts } from "@/lib/supabase/catalogue";
 import { effectivePrice } from "@/lib/product";
 import { ProductDetailClient } from "@/components/product/ProductDetailClient";
 import { ProductCard } from "@/components/product/ProductCard";
 import { RevealText } from "@/components/motion/RevealText";
 
-export async function generateStaticParams() {
-  const slugs = await getAllProductSlugs();
-  return slugs.map((slug) => ({ slug }));
-}
+// Deliberately no generateStaticParams: stock, price and deal state must never be
+// served stale (see lib/supabase/public.ts), so every product page renders
+// per-request rather than being pre-built once at deploy time. This also means the
+// build never depends on Supabase being reachable at build time.
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

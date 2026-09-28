@@ -10,6 +10,13 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 const siteUrl = "https://aurumentonet.co.ke";
 
+// Every page shares this layout's nav (live categories), cart and wishlist — all
+// read live from Supabase with no-store caching (see lib/supabase/public.ts), so
+// nothing in this app is honestly static. Forcing dynamic rendering here, once,
+// stops Next.js from attempting to prerender any page at build time — which is what
+// crashed the build when Supabase env vars weren't available to the build step.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
@@ -35,12 +42,25 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const user = isSupabaseConfigured() ? (await (await createClient()).auth.getUser()).data.user : null;
-  const [categories, initialCartLines, initialWishlistIds] = await Promise.all([
-    getActiveCategories(),
-    user ? getCartLines(user.id) : Promise.resolve([]),
-    user ? getWishlistProductIds(user.id) : Promise.resolve([]),
-  ]);
+  // The whole site renders through this layout, so a Supabase hiccup here must never
+  // crash every page — degrade to an empty nav/cart/wishlist instead of throwing.
+  let user = null;
+  let categories: Awaited<ReturnType<typeof getActiveCategories>> = [];
+  let initialCartLines: Awaited<ReturnType<typeof getCartLines>> = [];
+  let initialWishlistIds: string[] = [];
+
+  if (isSupabaseConfigured()) {
+    try {
+      user = (await (await createClient()).auth.getUser()).data.user;
+      [categories, initialCartLines, initialWishlistIds] = await Promise.all([
+        getActiveCategories(),
+        user ? getCartLines(user.id) : Promise.resolve([]),
+        user ? getWishlistProductIds(user.id) : Promise.resolve([]),
+      ]);
+    } catch (error) {
+      console.error("RootLayout: failed to load Supabase-backed data", error);
+    }
+  }
 
   return (
     <html lang="en" className={`${fraunces.variable} ${archivo.variable}`}>

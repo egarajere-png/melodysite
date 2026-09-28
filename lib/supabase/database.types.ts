@@ -1508,6 +1508,14 @@ export type Database = {
     Functions: {
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      release_variant_stock: {
+        Args: { p_quantity: number; p_variant_id: string }
+        Returns: undefined
+      }
+      reserve_variant_stock: {
+        Args: { p_quantity: number; p_variant_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       fulfilment_method: "DELIVERY" | "COLLECTION"

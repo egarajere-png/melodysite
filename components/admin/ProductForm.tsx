@@ -3,50 +3,84 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
-import type { Product, ProductVariant, CategorySlug } from "@/lib/types";
-import { categories } from "@/data/categories";
-import { collections } from "@/data/collections";
-import { getCostPrice } from "@/data/products";
+import type { CategorySlug, Category, CollectionSummary } from "@/lib/types";
+import type { ProductKind } from "@/lib/supabase/database.types";
+import type { AdminProductDetail, AdminVariantInput } from "@/lib/supabase/products-admin";
+import { createProductAction, updateProductAction } from "@/app/actions/admin-products";
 
 const inputClasses = "w-full border border-aurum-obsidian/15 bg-white px-3 py-2.5 text-sm focus-visible:border-aurum-obsidian focus-visible:outline-none";
 const labelClasses = "mb-1.5 block text-xs uppercase tracking-widest text-aurum-obsidian/50";
 
 let variantIdCounter = 0;
-
-function emptyVariant(): ProductVariant {
+function emptyVariant(): AdminVariantInput {
   variantIdCounter += 1;
-  return { id: `new-variant-${variantIdCounter}`, sku: "", colour: "", size: "", stock: 0 };
+  return { sku: "", colour: "", size: "", stock: 0 };
 }
 
-export function ProductForm({ product }: { product?: Product }) {
+export function ProductForm({
+  product,
+  categories,
+  collections,
+}: {
+  product?: AdminProductDetail;
+  categories: Category[];
+  collections: CollectionSummary[];
+}) {
   const router = useRouter();
   const isNew = !product;
 
   const [name, setName] = useState(product?.name ?? "");
   const [category, setCategory] = useState<CategorySlug>(product?.category ?? "rings");
+  const [productKind, setProductKind] = useState<ProductKind>(product?.productKind ?? "INDIVIDUAL_PIECE");
   const [collectionSlugs, setCollectionSlugs] = useState<string[]>(product?.collections ?? []);
   const [description, setDescription] = useState(product?.description ?? "");
+  const [careInstructions, setCareInstructions] = useState(product?.careInstructions ?? "");
+  const [shippingInfo, setShippingInfo] = useState(product?.shippingInfo ?? "");
+  const [returnsInfo, setReturnsInfo] = useState(product?.returnsInfo ?? "");
+  const [materials, setMaterials] = useState(product?.materials.join(", ") ?? "");
   const [price, setPrice] = useState(product?.price ?? 0);
-  const [salePrice, setSalePrice] = useState<number | "">(product?.salePrice ?? "");
-  const [costPrice, setCostPrice] = useState(product ? getCostPrice(product) : 0);
-  const [variants, setVariants] = useState<ProductVariant[]>(product?.variants ?? [emptyVariant()]);
-  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [costPrice, setCostPrice] = useState(product?.costPrice ?? 0);
+  const [variants, setVariants] = useState<(AdminVariantInput & { key: string })[]>(
+    (product?.variants ?? [emptyVariant()]).map((v, i) => ({ ...v, key: v.id ?? `new-${i}-${variantIdCounter}` }))
+  );
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
-  function updateVariant(id: string, patch: Partial<ProductVariant>) {
-    setVariants((prev) => prev.map((v) => (v.id === id ? { ...v, ...patch } : v)));
+  function updateVariant(key: string, patch: Partial<AdminVariantInput>) {
+    setVariants((prev) => prev.map((v) => (v.key === key ? { ...v, ...patch } : v)));
   }
 
   function toggleCollection(slug: string) {
     setCollectionSlugs((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // No backend is connected yet — this demonstrates the full editing UX without persisting.
-    setSavedMessage(
-      isNew ? "Product created (demo only — connect a backend to persist)." : "Changes saved (demo only — connect a backend to persist)."
-    );
-    window.setTimeout(() => setSavedMessage(null), 4000);
+    setSaving(true);
+    setMessage(null);
+
+    const input = {
+      name,
+      category,
+      productKind,
+      collections: collectionSlugs,
+      description,
+      careInstructions,
+      shippingInfo,
+      returnsInfo,
+      materials: materials.split(",").map((m) => m.trim()).filter(Boolean),
+      price,
+      costPrice,
+      variants: variants.map((v) => ({ id: v.id, sku: v.sku, colour: v.colour, size: v.size, stock: v.stock })),
+    };
+
+    const result = isNew ? await createProductAction(input) : await updateProductAction(product.id, input);
+    setSaving(false);
+    if (result.ok) {
+      router.push("/admin/products");
+    } else {
+      setMessage(result.error);
+    }
   }
 
   return (
@@ -69,6 +103,22 @@ export function ProductForm({ product }: { product?: Product }) {
         </div>
 
         <div>
+          <label className={labelClasses}>Product Type</label>
+          <div className="flex gap-2 pt-1">
+            {(["INDIVIDUAL_PIECE", "SET"] as const).map((k) => (
+              <button
+                type="button"
+                key={k}
+                onClick={() => setProductKind(k)}
+                className={`border px-3 py-1.5 text-xs ${productKind === k ? "border-aurum-obsidian bg-aurum-obsidian text-aurum-ivory" : "border-aurum-obsidian/20"}`}
+              >
+                {k === "SET" ? "Set" : "Individual Piece"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="sm:col-span-2">
           <label className={labelClasses}>Collections</label>
           <div className="flex flex-wrap gap-2 pt-1">
             {collections.map((c) => (
@@ -91,19 +141,27 @@ export function ProductForm({ product }: { product?: Product }) {
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} required className={inputClasses} />
         </div>
 
+        <div className="sm:col-span-2">
+          <label className={labelClasses}>Materials (comma-separated)</label>
+          <input value={materials} onChange={(e) => setMaterials(e.target.value)} placeholder="e.g. Sterling silver, Gold vermeil option" className={inputClasses} />
+        </div>
+
+        <div>
+          <label className={labelClasses}>Care Instructions</label>
+          <textarea value={careInstructions} onChange={(e) => setCareInstructions(e.target.value)} rows={2} className={inputClasses} />
+        </div>
+        <div>
+          <label className={labelClasses}>Shipping Info</label>
+          <textarea value={shippingInfo} onChange={(e) => setShippingInfo(e.target.value)} rows={2} className={inputClasses} />
+        </div>
+        <div className="sm:col-span-2">
+          <label className={labelClasses}>Returns Info</label>
+          <textarea value={returnsInfo} onChange={(e) => setReturnsInfo(e.target.value)} rows={2} className={inputClasses} />
+        </div>
+
         <div>
           <label className={labelClasses}>Price (KES)</label>
           <input type="number" min={0} value={price} onChange={(e) => setPrice(Number(e.target.value))} required className={inputClasses} />
-        </div>
-        <div>
-          <label className={labelClasses}>Sale Price (KES, optional)</label>
-          <input
-            type="number"
-            min={0}
-            value={salePrice}
-            onChange={(e) => setSalePrice(e.target.value === "" ? "" : Number(e.target.value))}
-            className={inputClasses}
-          />
         </div>
         <div>
           <label className={labelClasses}>Cost Price (KES)</label>
@@ -117,7 +175,7 @@ export function ProductForm({ product }: { product?: Product }) {
           <h2 className="font-display text-xl">Variants & Stock</h2>
           <button
             type="button"
-            onClick={() => setVariants((prev) => [...prev, emptyVariant()])}
+            onClick={() => setVariants((prev) => [...prev, { ...emptyVariant(), key: `new-${prev.length}-${variantIdCounter}` }])}
             className="flex items-center gap-1.5 text-xs uppercase tracking-widest text-aurum-deep"
           >
             <Plus size={14} strokeWidth={1.5} />
@@ -138,43 +196,31 @@ export function ProductForm({ product }: { product?: Product }) {
             </thead>
             <tbody>
               {variants.map((v) => (
-                <tr key={v.id} className="border-t border-aurum-obsidian/5">
+                <tr key={v.key} className="border-t border-aurum-obsidian/5">
                   <td className="py-2 pr-3">
-                    <input
-                      value={v.sku}
-                      onChange={(e) => updateVariant(v.id, { sku: e.target.value })}
-                      className={inputClasses}
-                    />
+                    <input value={v.sku} onChange={(e) => updateVariant(v.key, { sku: e.target.value })} required className={inputClasses} />
                   </td>
                   <td className="py-2 pr-3">
-                    <input
-                      value={v.colour ?? ""}
-                      onChange={(e) => updateVariant(v.id, { colour: e.target.value })}
-                      className={inputClasses}
-                    />
+                    <input value={v.colour ?? ""} onChange={(e) => updateVariant(v.key, { colour: e.target.value })} className={inputClasses} />
                   </td>
                   <td className="py-2 pr-3">
-                    <input
-                      value={v.size ?? ""}
-                      onChange={(e) => updateVariant(v.id, { size: e.target.value })}
-                      className={inputClasses}
-                    />
+                    <input value={v.size ?? ""} onChange={(e) => updateVariant(v.key, { size: e.target.value })} className={inputClasses} />
                   </td>
                   <td className="py-2 pr-3">
                     <input
                       type="number"
                       min={0}
                       value={v.stock}
-                      onChange={(e) => updateVariant(v.id, { stock: Number(e.target.value) })}
+                      onChange={(e) => updateVariant(v.key, { stock: Number(e.target.value) })}
                       className={`${inputClasses} w-24`}
                     />
                   </td>
                   <td className="py-2">
                     <button
                       type="button"
-                      onClick={() => setVariants((prev) => prev.filter((x) => x.id !== v.id))}
+                      onClick={() => setVariants((prev) => prev.filter((x) => x.key !== v.key))}
                       aria-label="Remove variant"
-                      className="text-aurum-obsidian/40 hover:text-red-800"
+                      className="text-aurum-obsidian/40 hover:text-aurum-earth"
                     >
                       <Trash2 size={16} strokeWidth={1.5} />
                     </button>
@@ -187,13 +233,17 @@ export function ProductForm({ product }: { product?: Product }) {
       </div>
 
       <div className="flex items-center gap-4">
-        <button type="submit" className="bg-aurum-deep px-8 py-3 text-xs uppercase tracking-widest text-aurum-ivory transition-colors hover:bg-aurum-plum">
-          {isNew ? "Create Product" : "Save Changes"}
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-aurum-deep px-8 py-3 text-xs uppercase tracking-widest text-aurum-ivory transition-colors hover:bg-aurum-plum disabled:opacity-60"
+        >
+          {saving ? "Saving…" : isNew ? "Create Product" : "Save Changes"}
         </button>
         <button type="button" onClick={() => router.push("/admin/products")} className="text-xs uppercase tracking-widest text-aurum-obsidian/60">
           Cancel
         </button>
-        {savedMessage && <p className="text-sm text-green-800">{savedMessage}</p>}
+        {message && <p className="text-sm text-aurum-earth">{message}</p>}
       </div>
     </form>
   );

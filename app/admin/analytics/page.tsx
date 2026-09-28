@@ -1,21 +1,20 @@
 import { RevenueChart } from "@/components/admin/RevenueChart";
 import { CategoryChart } from "@/components/admin/CategoryChart";
-import { getMonthlySeries, getTopProducts, getCategoryPerformance, getInventoryMovement } from "@/lib/analytics";
+import { getMonthlySeries, getTopProducts, getCategoryPerformance, getInventoryMovement } from "@/lib/supabase/analytics";
 import { formatKES } from "@/lib/format";
 
-export default function AdminAnalyticsPage() {
-  const monthly = getMonthlySeries();
-  const topProducts = getTopProducts(8);
-  const categoryPerformance = getCategoryPerformance().map((c) => ({
-    ...c,
-    category: c.category.replace("-", " "),
-  }));
-  const inventory = getInventoryMovement();
+export default async function AdminAnalyticsPage() {
+  const [monthly, topProducts, categoryPerformanceRaw, inventory] = await Promise.all([
+    getMonthlySeries(),
+    getTopProducts(8),
+    getCategoryPerformance(),
+    getInventoryMovement(),
+  ]);
+  const categoryPerformance = categoryPerformanceRaw.map((c) => ({ ...c, category: c.category.replace("-", " ") }));
 
   return (
     <div>
-      <h1 className="mb-1 font-display text-3xl">Analytics</h1>
-      <p className="mb-8 text-sm text-aurum-obsidian/50">Showing demo data — connect a backend for live metrics.</p>
+      <h1 className="mb-8 font-display text-3xl">Analytics</h1>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="border border-aurum-obsidian/10 bg-white p-5">
@@ -48,7 +47,7 @@ export default function AdminAnalyticsPage() {
           <h2 className="mb-4 text-sm uppercase tracking-widest text-aurum-obsidian/50">Inventory Movement (lowest stock first)</h2>
           <ul className="flex flex-col gap-3">
             {inventory.slice(0, 8).map((p) => (
-              <li key={p.name} className="flex items-center justify-between text-sm">
+              <li key={p.id} className="flex items-center justify-between text-sm">
                 <span>{p.name}</span>
                 <span className={p.stock === 0 ? "text-red-800" : p.stock <= 5 ? "text-aurum-earth" : "text-aurum-obsidian/60"}>
                   {p.stock} in stock

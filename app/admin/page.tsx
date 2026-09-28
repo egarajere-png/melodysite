@@ -2,20 +2,17 @@ import Link from "next/link";
 import { DollarSign, ShoppingBag, Package, TrendingUp, Gauge, AlertTriangle, XCircle, Clock } from "lucide-react";
 import { StatTile } from "@/components/admin/StatTile";
 import { RevenueChart } from "@/components/admin/RevenueChart";
-import { getDashboardMetrics, getMonthlySeries, getTopProducts } from "@/lib/analytics";
+import { getDashboardMetrics, getMonthlySeries, getTopProducts } from "@/lib/supabase/analytics";
 import { formatKES } from "@/lib/format";
 
-export default function AdminDashboardPage() {
-  const metrics = getDashboardMetrics();
-  const monthly = getMonthlySeries();
-  const topProducts = getTopProducts(5);
+export default async function AdminDashboardPage() {
+  const [metrics, monthly, topProducts] = await Promise.all([getDashboardMetrics(), getMonthlySeries(), getTopProducts(5)]);
 
   return (
     <div>
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl">Dashboard</h1>
-          <p className="mt-1 text-sm text-aurum-obsidian/50">Showing demo data — connect a backend for live metrics.</p>
         </div>
       </div>
 

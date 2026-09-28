@@ -1,45 +1,71 @@
-import type { Order, OrderStatus } from "@/lib/types";
 import { formatDate } from "@/lib/format";
 import { Check } from "lucide-react";
+import type { OrderStatus, FulfilmentMethod } from "@/lib/supabase/database.types";
+import type { OrderStatusEvent } from "@/lib/supabase/orders-customer";
 
-const DELIVERY_STEPS: OrderStatus[] = ["Pending Payment", "Payment Received", "Processing", "Dispatched", "Completed"];
-const COLLECTION_STEPS: OrderStatus[] = [
-  "Pending Payment",
-  "Payment Received",
-  "Processing",
-  "Ready for Collection",
-  "Completed",
+const DELIVERY_STEPS: OrderStatus[] = [
+  "PAYMENT_PENDING",
+  "PAYMENT_CONFIRMED",
+  "PROCESSING",
+  "DISPATCHED",
+  "IN_TRANSIT",
+  "DELIVERED",
+  "COMPLETED",
 ];
+const COLLECTION_STEPS: OrderStatus[] = ["PAYMENT_PENDING", "PAYMENT_CONFIRMED", "PROCESSING", "READY_FOR_COLLECTION", "COMPLETED"];
 
-const STEP_DESCRIPTIONS: Record<OrderStatus, string> = {
-  "Pending Payment": "Order placed, awaiting payment confirmation.",
-  "Payment Received": "Payment confirmed — your order is queued for production.",
-  Processing: "Your piece is being finished and quality-checked.",
-  "Ready for Collection": "Available for pickup at our studio.",
-  Dispatched: "On its way to you.",
-  Completed: "Delivered — enjoy your piece.",
-  Cancelled: "This order was cancelled.",
-  Refunded: "This order was refunded.",
+export const STEP_LABELS: Record<OrderStatus, string> = {
+  PAYMENT_PENDING: "Order Placed",
+  PAYMENT_CONFIRMED: "Payment Received",
+  PROCESSING: "Processing",
+  READY_FOR_COLLECTION: "Ready for Collection",
+  DISPATCHED: "Dispatched",
+  IN_TRANSIT: "In Transit",
+  DELIVERED: "Delivered",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  REFUNDED: "Refunded",
 };
 
-export function OrderTimeline({ order }: { order: Order }) {
-  if (order.status === "Cancelled" || order.status === "Refunded") {
+const STEP_DESCRIPTIONS: Record<OrderStatus, string> = {
+  PAYMENT_PENDING: "Order placed, awaiting payment confirmation.",
+  PAYMENT_CONFIRMED: "Payment confirmed — your order is queued for production.",
+  PROCESSING: "Your piece is being finished and quality-checked.",
+  READY_FOR_COLLECTION: "Available for pickup at our studio.",
+  DISPATCHED: "Handed to our courier.",
+  IN_TRANSIT: "On its way to you.",
+  DELIVERED: "Delivered to your address.",
+  COMPLETED: "Enjoy your piece.",
+  CANCELLED: "This order was cancelled.",
+  REFUNDED: "This order was refunded.",
+};
+
+export function OrderTimeline({
+  status,
+  fulfilment,
+  history,
+}: {
+  status: OrderStatus;
+  fulfilment: FulfilmentMethod;
+  history: OrderStatusEvent[];
+}) {
+  if (status === "CANCELLED" || status === "REFUNDED") {
     return (
       <div className="border border-aurum-obsidian/15 p-6">
-        <p className="font-display text-xl">{order.status}</p>
-        <p className="mt-2 text-sm text-aurum-obsidian/60">{STEP_DESCRIPTIONS[order.status]}</p>
+        <p className="font-display text-xl">{STEP_LABELS[status]}</p>
+        <p className="mt-2 text-sm text-aurum-obsidian/60">{STEP_DESCRIPTIONS[status]}</p>
       </div>
     );
   }
 
-  const steps = order.fulfilment === "delivery" ? DELIVERY_STEPS : COLLECTION_STEPS;
-  const currentIndex = steps.indexOf(order.status);
+  const steps = fulfilment === "DELIVERY" ? DELIVERY_STEPS : COLLECTION_STEPS;
+  const currentIndex = steps.indexOf(status);
 
   return (
     <ol className="flex flex-col gap-0">
       {steps.map((step, i) => {
         const done = i <= currentIndex;
-        const historyEntry = order.history.find((h) => h.status === step);
+        const historyEntry = history.find((h) => h.status === step);
         return (
           <li key={step} className="flex gap-4 pb-8 last:pb-0">
             <div className="flex flex-col items-center">
@@ -56,7 +82,7 @@ export function OrderTimeline({ order }: { order: Order }) {
             </div>
             <div className="pt-1">
               <p className={`text-sm uppercase tracking-widest ${done ? "text-aurum-obsidian" : "text-aurum-obsidian/40"}`}>
-                {step}
+                {STEP_LABELS[step]}
               </p>
               <p className="mt-1 text-sm text-aurum-obsidian/60">{STEP_DESCRIPTIONS[step]}</p>
               {historyEntry && (

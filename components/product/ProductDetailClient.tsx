@@ -65,6 +65,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
         productId: product.id,
         productSlug: product.slug,
         variantId: currentVariant.id,
+        sku: currentVariant.sku,
         name: product.name,
         variantLabel: [currentVariant.colour, currentVariant.size].filter(Boolean).join(" / ") || "One Size",
         unitPrice: price,

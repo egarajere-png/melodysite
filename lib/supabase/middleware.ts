@@ -32,9 +32,12 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (request.nextUrl.pathname.startsWith("/admin")) {
+  // /admin/login is the staff sign-in page itself — it must never be gated by the
+  // same check it exists to satisfy, or an unauthenticated staff member could never
+  // reach it.
+  if (request.nextUrl.pathname.startsWith("/admin") && request.nextUrl.pathname !== "/admin/login") {
     if (!user) {
-      const redirectUrl = new URL(`/account?next=${encodeURIComponent(request.nextUrl.pathname)}`, request.url);
+      const redirectUrl = new URL(`/admin/login?next=${encodeURIComponent(request.nextUrl.pathname)}`, request.url);
       return NextResponse.redirect(redirectUrl);
     }
 

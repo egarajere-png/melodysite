@@ -1,48 +1,51 @@
-"use client";
-
-import { FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import type { Metadata } from "next";
+import Link from "next/link";
 import { RevealText } from "@/components/motion/RevealText";
-import { getOrder } from "@/data/orders";
+import { OrderLookupForm } from "@/components/orders/OrderLookupForm";
+import { STEP_LABELS } from "@/components/orders/OrderTimeline";
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { getCustomerOrders } from "@/lib/supabase/orders-customer";
+import { formatKES, formatDate } from "@/lib/format";
 
-export default function OrderLookupPage() {
-  const router = useRouter();
-  const [orderId, setOrderId] = useState("");
-  const [error, setError] = useState<string | null>(null);
+export const metadata: Metadata = { title: "Track Your Order" };
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const order = getOrder(orderId.trim().toUpperCase());
-    if (!order) {
-      setError("We couldn't find an order with that reference. Check the ID and try again.");
-      return;
-    }
-    router.push(`/orders/${order.id}`);
-  }
+export default async function OrderLookupPage() {
+  const user = isSupabaseConfigured() ? (await (await createClient()).auth.getUser()).data.user : null;
+  const orders = user ? await getCustomerOrders(user.id) : [];
 
   return (
     <div className="pt-32 pb-24 sm:pt-40">
       <div className="container-aurum max-w-md">
         <RevealText as="h1" text="Track Your Order" className="mb-6 font-display text-4xl sm:text-5xl" />
+
+        {orders.length > 0 && (
+          <div className="mb-12 flex flex-col gap-2">
+            <p className="mb-2 text-xs uppercase tracking-widest text-aurum-obsidian/50">Your Orders</p>
+            {orders.map((o) => (
+              <Link
+                key={o.id}
+                href={`/orders/${o.orderNumber}`}
+                className="flex items-center justify-between border border-[var(--border-subtle)] px-4 py-3 text-sm transition-colors hover:border-aurum-obsidian"
+              >
+                <span>
+                  <span className="font-medium">{o.orderNumber}</span>{" "}
+                  <span className="text-aurum-obsidian/50">· {formatDate(o.createdAt)}</span>
+                </span>
+                <span className="text-xs uppercase tracking-widest text-aurum-obsidian/60">
+                  {STEP_LABELS[o.status]} · {formatKES(o.total)}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+
         <p className="mb-8 text-sm text-aurum-obsidian/60">
-          Enter your order reference to see its current status. You&apos;ll find this in your order confirmation.
+          {orders.length > 0
+            ? "Or enter any order reference to look it up directly."
+            : "Enter your order reference to see its current status. You'll find this in your order confirmation."}
         </p>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <input
-            value={orderId}
-            onChange={(e) => setOrderId(e.target.value)}
-            placeholder="e.g. AE-10231"
-            aria-label="Order reference"
-            className="w-full border-b border-aurum-obsidian/25 bg-transparent py-3 text-sm placeholder:text-aurum-obsidian/40 focus-visible:border-aurum-obsidian focus-visible:outline-none"
-          />
-          {error && <p className="text-sm text-aurum-earth">{error}</p>}
-          <button
-            type="submit"
-            className="self-start bg-aurum-deep px-8 py-4 text-xs uppercase tracking-[0.2em] text-aurum-ivory transition-colors hover:bg-aurum-plum"
-          >
-            Track Order
-          </button>
-        </form>
+        <OrderLookupForm />
       </div>
     </div>
   );

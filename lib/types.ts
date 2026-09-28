@@ -1,6 +1,6 @@
-// Domain types for Aurum Entonet.
-// These mirror what a real API/backend would return, so mock data in /data
-// can be swapped for live fetches without touching component code.
+// Shared storefront view-model types. These mirror what the Supabase-backed
+// repositories in lib/supabase/*.ts return, so UI components stay decoupled from the
+// database's own column names/shapes.
 
 export type Money = number; // stored as KES, integer or decimal shillings
 
@@ -34,11 +34,6 @@ export interface ImageRef {
   tone?: "ivory" | "deep" | "plum" | "sand" | "obsidian" | "earth";
   /** Public URL of a real uploaded photo. When present, <EditorialImage> renders this instead of the placeholder. */
   url?: string;
-}
-
-export interface VariantOption {
-  colour?: string;
-  size?: string;
 }
 
 export interface ProductVariant {
@@ -80,59 +75,4 @@ export interface Deal {
   startsAt: string;
   endsAt: string;
   active: boolean;
-}
-
-export type OrderStatus =
-  | "Pending Payment"
-  | "Payment Received"
-  | "Processing"
-  | "Ready for Collection"
-  | "Dispatched"
-  | "Completed"
-  | "Cancelled"
-  | "Refunded";
-
-export interface OrderItem {
-  productId: string;
-  variantId: string;
-  name: string;
-  variantLabel: string;
-  quantity: number;
-  unitPrice: Money;
-  image: ImageRef;
-}
-
-export interface Order {
-  id: string;
-  customerName: string;
-  customerEmail: string;
-  items: OrderItem[];
-  status: OrderStatus;
-  fulfilment: "delivery" | "collection";
-  address?: string;
-  subtotal: Money;
-  createdAt: string;
-  history: { status: OrderStatus; timestamp: string; note?: string }[];
-}
-
-export interface Customer {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-  totalOrders: number;
-  totalSpend: Money;
-  lastOrderAt?: string;
-}
-
-export type InquiryStatus = "New" | "Read" | "In Progress" | "Resolved";
-
-export interface Inquiry {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  status: InquiryStatus;
-  createdAt: string;
 }

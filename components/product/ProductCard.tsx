@@ -26,6 +26,7 @@ export function ProductCard({ product, className = "" }: { product: Product; cla
         productId: product.id,
         productSlug: product.slug,
         variantId: variant.id,
+        sku: variant.sku,
         name: product.name,
         variantLabel: [variant.colour, variant.size].filter(Boolean).join(" / ") || "One Size",
         unitPrice: effectivePrice(product),
