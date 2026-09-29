@@ -74,6 +74,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <SiteShell
           categories={categories}
           isAuthenticated={Boolean(user)}
+          account={user ? { name: (user.user_metadata?.full_name as string | undefined) ?? (user.user_metadata?.name as string | undefined) ?? null, email: user.email ?? null } : null}
           initialCartLines={initialCartLines}
           initialWishlistIds={initialWishlistIds}
         >

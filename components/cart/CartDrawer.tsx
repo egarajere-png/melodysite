@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { EditorialImage } from "@/components/ui/EditorialImage";
-import { GoogleAuthButton } from "@/components/account/GoogleAuthButton";
+import { AuthOptions } from "@/components/account/AuthOptions";
 import { formatKES } from "@/lib/format";
 import { easeSoft } from "@/lib/motion";
 
@@ -52,7 +52,7 @@ export function CartDrawer() {
                 <p className="max-w-xs text-sm text-aurum-obsidian/60">
                   Your bag is saved to your account, so it&apos;s there whenever you come back.
                 </p>
-                <GoogleAuthButton />
+                <AuthOptions onNavigate={closeCart} />
               </div>
             ) : lines.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">

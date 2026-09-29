@@ -7,6 +7,7 @@ import type { CategorySlug, Category, CollectionSummary } from "@/lib/types";
 import type { ProductKind } from "@/lib/supabase/database.types";
 import type { AdminProductDetail, AdminVariantInput } from "@/lib/supabase/products-admin";
 import { createProductAction, updateProductAction } from "@/app/actions/admin-products";
+import { useToast } from "@/components/admin/Toast";
 
 const inputClasses = "w-full border border-aurum-obsidian/15 bg-white px-3 py-2.5 text-sm focus-visible:border-aurum-obsidian focus-visible:outline-none";
 const labelClasses = "mb-1.5 block text-xs uppercase tracking-widest text-aurum-obsidian/50";
@@ -27,10 +28,11 @@ export function ProductForm({
   collections: CollectionSummary[];
 }) {
   const router = useRouter();
+  const toast = useToast();
   const isNew = !product;
 
   const [name, setName] = useState(product?.name ?? "");
-  const [category, setCategory] = useState<CategorySlug>(product?.category ?? "rings");
+  const [category, setCategory] = useState<CategorySlug>(product?.category || categories[0]?.slug || "");
   const [productKind, setProductKind] = useState<ProductKind>(product?.productKind ?? "INDIVIDUAL_PIECE");
   const [collectionSlugs, setCollectionSlugs] = useState<string[]>(product?.collections ?? []);
   const [description, setDescription] = useState(product?.description ?? "");
@@ -77,9 +79,17 @@ export function ProductForm({
     const result = isNew ? await createProductAction(input) : await updateProductAction(product.id, input);
     setSaving(false);
     if (result.ok) {
-      router.push("/admin/products");
+      if (isNew) {
+        toast.success(`${name} has been added. Now upload its images.`);
+        router.push(`/admin/products/${result.id}`);
+      } else {
+        toast.success(`${name} has been updated.`);
+        // Stay on the page: new colours need a fresh server render to get an image gallery.
+        router.refresh();
+      }
     } else {
       setMessage(result.error);
+      toast.error(result.error);
     }
   }
 

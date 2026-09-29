@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { GoogleAuthButton } from "@/components/account/GoogleAuthButton";
+import { AuthOptions } from "@/components/account/AuthOptions";
 import { easeSoft } from "@/lib/motion";
 
 /** Shared modal used wherever an action (wishlist today) requires an account but the
@@ -43,7 +43,7 @@ export function SignInPrompt({
             <p className="font-display text-xl">{title}</p>
             <p className="mt-3 text-sm text-aurum-obsidian/60">{description}</p>
             <div className="mt-6 flex justify-center">
-              <GoogleAuthButton />
+              <AuthOptions onNavigate={onClose} />
             </div>
             <button
               onClick={onClose}

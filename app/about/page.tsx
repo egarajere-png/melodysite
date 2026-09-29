@@ -6,6 +6,7 @@ import { ImageReveal } from "@/components/motion/ImageReveal";
 import { ParallaxImage } from "@/components/motion/ParallaxImage";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { MagneticButton } from "@/components/motion/MagneticButton";
+import { SITE_IMAGES } from "@/lib/site-images";
 
 export const metadata: Metadata = {
   title: "About Aurum",
@@ -19,7 +20,8 @@ export default function AboutPage() {
       {/* Opening statement */}
       <section className="relative flex h-[90vh] min-h-[560px] items-end overflow-hidden bg-aurum-obsidian text-aurum-ivory">
         <ParallaxImage
-          image={{ id: "about-hero", alt: "Aurum Entonet studio", kind: "editorial", tone: "obsidian" }}
+          image={SITE_IMAGES.aboutHero}
+          priority
           className="absolute inset-0 h-full w-full"
           strength={50}
         />
@@ -53,7 +55,7 @@ export default function AboutPage() {
           </div>
           <ImageReveal className="order-1 aspect-[4/5] w-full lg:order-2">
             <EditorialImage
-              image={{ id: "about-story", alt: "Aurum Entonet studio practice", kind: "editorial", tone: "plum" }}
+              image={SITE_IMAGES.aboutStory}
               className="h-full w-full"
             />
           </ImageReveal>
@@ -75,16 +77,16 @@ export default function AboutPage() {
 
           <div className="mt-14 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-4">
             <ImageReveal className="col-span-2 aspect-[4/5] lg:col-span-1 lg:translate-y-8">
-              <EditorialImage image={{ id: "about-roots-1", alt: "Materials and texture", kind: "editorial", tone: "earth" }} className="h-full w-full" />
+              <EditorialImage image={SITE_IMAGES.aboutRoots1} className="h-full w-full" />
             </ImageReveal>
             <ImageReveal className="aspect-square lg:aspect-[4/5]">
-              <EditorialImage image={{ id: "about-roots-2", alt: "Studio detail", kind: "product", tone: "sand" }} className="h-full w-full" />
+              <EditorialImage image={SITE_IMAGES.aboutRoots2} className="h-full w-full" />
             </ImageReveal>
             <ImageReveal className="aspect-square lg:aspect-[4/5] lg:translate-y-12">
-              <EditorialImage image={{ id: "about-roots-3", alt: "Aurum Entonet piece detail", kind: "product", tone: "obsidian" }} className="h-full w-full" />
+              <EditorialImage image={SITE_IMAGES.aboutRoots3} className="h-full w-full" />
             </ImageReveal>
             <ImageReveal className="col-span-2 aspect-[4/5] lg:col-span-1">
-              <EditorialImage image={{ id: "about-roots-4", alt: "Worn Aurum Entonet piece", kind: "worn", tone: "deep" }} className="h-full w-full" />
+              <EditorialImage image={SITE_IMAGES.aboutRoots4} className="h-full w-full" />
             </ImageReveal>
           </div>
         </div>
@@ -95,7 +97,7 @@ export default function AboutPage() {
         <div className="container-aurum grid gap-10 lg:grid-cols-2 lg:gap-16">
           <ImageReveal className="aspect-[4/5] w-full">
             <EditorialImage
-              image={{ id: "about-craft", alt: "Hand-finishing a piece of jewellery", kind: "editorial", tone: "obsidian" }}
+              image={SITE_IMAGES.aboutCraft}
               className="h-full w-full"
             />
           </ImageReveal>
@@ -159,7 +161,7 @@ export default function AboutPage() {
             </FadeIn>
           </div>
           <ImageReveal className="aspect-[4/5] w-full">
-            <EditorialImage image={{ id: "about-community", alt: "Aurum Entonet community", kind: "worn", tone: "sand" }} className="h-full w-full" />
+            <EditorialImage image={SITE_IMAGES.aboutCommunity} className="h-full w-full" />
           </ImageReveal>
         </div>
       </section>
@@ -167,7 +169,7 @@ export default function AboutPage() {
       {/* Final CTA — dramatic close */}
       <section className="relative flex h-[70vh] min-h-[440px] items-center justify-center overflow-hidden bg-aurum-plum text-aurum-ivory">
         <div className="pointer-events-none absolute inset-0 opacity-40">
-          <EditorialImage image={{ id: "about-final-cta", alt: "", kind: "editorial", tone: "deep" }} className="h-full w-full" />
+          <EditorialImage image={SITE_IMAGES.aboutFinalCta} className="h-full w-full" />
         </div>
         <div className="container-aurum relative z-10 text-center">
           <p className="mb-4 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">06 — Begin</p>

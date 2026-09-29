@@ -126,6 +126,10 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Safety net: nothing should ever let the page slide sideways on a phone. `clip`
+     (unlike `hidden`) doesn't create a scroll container, so sticky/fixed elements and
+     the in-page horizontal carousels keep working. */
+  overflow-x: clip;
 }
 
 ::selection {

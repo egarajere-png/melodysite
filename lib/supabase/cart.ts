@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveDeal } from "@/lib/supabase/catalogue";
 import type { CartLine } from "@/context/CartContext";
 import type { ImageRef } from "@/lib/types";
+import { storedImageRef } from "@/lib/product-media";
 
 /**
  * Server-side cart operations. Every mutation re-derives price and available stock
@@ -35,27 +36,29 @@ function variantLabel(v: RawVariantRow): string {
   return [colour, size].filter(Boolean).join(" / ") || "One Size";
 }
 
-async function primaryImage(productId: string): Promise<ImageRef> {
+/** The bag shows the image of the colour actually chosen: that colour's first image
+ * if it has one, otherwise the product's main image. */
+async function lineImage(productId: string, colour: string | undefined, name: string): Promise<ImageRef> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("product_media")
-    .select("id, storage_path, alt_text")
+    .select("id, storage_path, alt_text, media_kind, is_primary, sort_order, variant_id, product_variants ( variant_option_values ( product_option_values ( value, product_options ( name ) ) ) )")
     .eq("product_id", productId)
-    .eq("media_kind", "PRODUCT")
-    .order("sort_order")
-    .limit(1)
-    .maybeSingle();
-  if (!data) return { id: productId, alt: "", kind: "product", tone: "sand" };
-  if (data.storage_path.startsWith("placeholder:")) {
-    const [, kind, tone, id] = data.storage_path.split(":");
-    return { id, alt: data.alt_text ?? "", kind: (kind as ImageRef["kind"]) ?? "product", tone: (tone as ImageRef["tone"]) ?? "sand" };
-  }
-  return {
-    id: data.id,
-    alt: data.alt_text ?? "",
-    kind: "product",
-    url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-media/${data.storage_path}`,
-  };
+    .neq("media_kind", "WORN")
+    .order("is_primary", { ascending: false })
+    .order("sort_order");
+  const rows = (data ?? []) as unknown as {
+    id: string;
+    storage_path: string;
+    alt_text: string | null;
+    variant_id: string | null;
+    product_variants: { variant_option_values: RawVariantRow["variant_option_values"] } | null;
+  }[];
+  const colourOf = (r: (typeof rows)[number]) =>
+    r.product_variants?.variant_option_values.find((v) => v.product_option_values?.product_options?.name === "Colour")?.product_option_values?.value;
+  const match = (colour && rows.find((r) => r.variant_id && colourOf(r) === colour)) || rows.find((r) => !r.variant_id) || rows[0];
+  if (!match) return { id: productId, alt: name, kind: "product" };
+  return storedImageRef(match.id, match.storage_path, match.alt_text || name);
 }
 
 async function effectiveUnitPrice(variant: RawVariantRow): Promise<number> {
@@ -91,7 +94,11 @@ async function toCartLine(variant: RawVariantRow, quantity: number): Promise<Car
     name: variant.products.name,
     variantLabel: variantLabel(variant),
     unitPrice: await effectiveUnitPrice(variant),
-    image: await primaryImage(variant.products.id),
+    image: await lineImage(
+      variant.products.id,
+      variant.variant_option_values.find((v) => v.product_option_values?.product_options?.name === "Colour")?.product_option_values?.value,
+      variant.products.name
+    ),
     quantity,
     maxStock: availableStock(variant),
   };

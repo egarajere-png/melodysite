@@ -2,15 +2,14 @@ import { ImageReveal } from "@/components/motion/ImageReveal";
 import { RevealText } from "@/components/motion/RevealText";
 import { FadeIn } from "@/components/motion/FadeIn";
 import { EditorialImage } from "@/components/ui/EditorialImage";
-
-const textureImage = { id: "home-storytelling", alt: "Natural materials and texture, Aurum Entonet", kind: "editorial" as const, tone: "earth" as const };
+import { SITE_IMAGES } from "@/lib/site-images";
 
 export function AfricanStorytelling() {
   return (
     <section className="bg-aurum-obsidian py-section text-aurum-ivory">
       <div className="container-aurum grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
         <ImageReveal className="aspect-[4/5] w-full">
-          <EditorialImage image={textureImage} className="h-full w-full" />
+          <EditorialImage image={SITE_IMAGES.homeStorytelling} className="h-full w-full" />
         </ImageReveal>
 
         <div>

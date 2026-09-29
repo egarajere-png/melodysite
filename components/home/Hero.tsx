@@ -6,15 +6,14 @@ import { RevealText } from "@/components/motion/RevealText";
 import { FadeIn } from "@/components/motion/FadeIn";
 import { MagneticButton } from "@/components/motion/MagneticButton";
 import { usePreloaderReady } from "@/lib/usePreloaderReady";
-
-const heroImage = { id: "home-hero", alt: "Aurum Entonet editorial hero", kind: "worn" as const, tone: "obsidian" as const };
+import { SITE_IMAGES } from "@/lib/site-images";
 
 export function Hero() {
   const ready = usePreloaderReady();
 
   return (
     <section className="relative flex h-dvh min-h-[640px] w-full items-end overflow-hidden bg-aurum-obsidian text-aurum-ivory">
-      <ParallaxImage image={heroImage} className="absolute inset-0 h-full w-full" strength={50} />
+      <ParallaxImage image={SITE_IMAGES.homeHero} priority className="absolute inset-0 h-full w-full" strength={50} />
       <div className="absolute inset-0 bg-gradient-to-t from-aurum-obsidian via-aurum-obsidian/40 to-aurum-obsidian/10" />
 
       {ready && (

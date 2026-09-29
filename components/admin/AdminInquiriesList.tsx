@@ -4,6 +4,7 @@ import { useState } from "react";
 import { formatDate } from "@/lib/format";
 import { updateInquiryStatusAction } from "@/app/actions/admin-inquiries";
 import type { Inquiry, InquiryStatus } from "@/lib/supabase/inquiries";
+import { useToast } from "@/components/admin/Toast";
 
 const STATUSES: InquiryStatus[] = ["NEW", "READ", "IN_PROGRESS", "RESOLVED"];
 const STATUS_LABELS: Record<InquiryStatus, string> = { NEW: "New", READ: "Read", IN_PROGRESS: "In Progress", RESOLVED: "Resolved" };
@@ -15,6 +16,7 @@ const STATUS_STYLES: Record<InquiryStatus, string> = {
 };
 
 export function AdminInquiriesList({ inquiries: initial }: { inquiries: Inquiry[] }) {
+  const toast = useToast();
   const [inquiries, setInquiries] = useState(initial);
 
   async function updateStatus(id: string, status: InquiryStatus) {
@@ -22,7 +24,10 @@ export function AdminInquiriesList({ inquiries: initial }: { inquiries: Inquiry[
     const result = await updateInquiryStatusAction(id, status);
     if (!result.ok) {
       setInquiries(initial); // revert on failure
+      toast.error(result.error);
+      return;
     }
+    toast.success(`Inquiry marked as ${STATUS_LABELS[status]}.`);
   }
 
   if (inquiries.length === 0) {

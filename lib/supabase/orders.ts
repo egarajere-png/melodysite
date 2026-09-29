@@ -24,8 +24,9 @@ export interface CreatedOrder {
   total: number;
 }
 
+/** Snapshot of the line's image URL for order history; null when the product had no photo yet. */
 function imageReference(line: CartLine): string | null {
-  return line.image.url ?? line.image.id ?? null;
+  return line.image.url ?? null;
 }
 
 /**

@@ -13,6 +13,7 @@ import { SignInPrompt } from "@/components/account/SignInPrompt";
 import { PageTransition } from "@/components/motion/PageTransition";
 import { Footer } from "@/components/layout/Footer";
 import type { Category } from "@/lib/types";
+import type { NavAccount } from "@/components/layout/UserMenu";
 
 /** Sits inside WishlistProvider so it can read/dismiss the shared sign-in modal —
  * a plain component can't consume the context it's also providing. */
@@ -32,12 +33,14 @@ export function SiteShell({
   children,
   categories,
   isAuthenticated,
+  account,
   initialCartLines,
   initialWishlistIds,
 }: {
   children: ReactNode;
   categories: Category[];
   isAuthenticated: boolean;
+  account: NavAccount | null;
   initialCartLines: CartLine[];
   initialWishlistIds: string[];
 }) {
@@ -55,7 +58,7 @@ export function SiteShell({
       <WishlistProvider isAuthenticated={isAuthenticated} initialProductIds={initialWishlistIds}>
         <Preloader />
         <CustomCursor />
-        <Navbar onOpenMenu={() => setMenuOpen(true)} categories={categories} />
+        <Navbar onOpenMenu={() => setMenuOpen(true)} categories={categories} account={account} />
         <MenuOverlay open={menuOpen} onClose={() => setMenuOpen(false)} categories={categories} />
         <CartDrawer />
         <WishlistSignInPrompt />

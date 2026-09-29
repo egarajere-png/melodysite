@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Heart } from "lucide-react";
 import type { Product } from "@/lib/types";
-import { effectivePrice, totalStock } from "@/lib/product";
+import { effectivePrice, leadImage, totalStock } from "@/lib/product";
 import { formatKES } from "@/lib/format";
 import { HoverImageSwap } from "@/components/motion/HoverImageSwap";
 import { useCart } from "@/context/CartContext";
@@ -30,7 +30,7 @@ export function ProductCard({ product, className = "" }: { product: Product; cla
         name: product.name,
         variantLabel: [variant.colour, variant.size].filter(Boolean).join(" / ") || "One Size",
         unitPrice: effectivePrice(product),
-        image: product.images[0],
+        image: leadImage(product, variant.colour),
         maxStock: variant.stock,
       },
       1
@@ -42,12 +42,17 @@ export function ProductCard({ product, className = "" }: { product: Product; cla
   return (
     <div className={`group flex flex-col ${className}`}>
       <div className="relative">
-        <Link href={`/shop/${product.slug}`} data-cursor="view" className="block">
+        <Link href={`/shop/${product.slug}`} data-cursor="view" className="relative block">
           <HoverImageSwap
-            primary={product.images[0]}
+            primary={leadImage(product)}
             secondary={product.wornImage ?? product.images[1]}
-            className="aspect-[4/5] w-full"
+            className={`aspect-[4/5] w-full ${inStock ? "" : "opacity-70"}`}
           />
+          {!inStock && (
+            <span className="absolute left-3 top-3 bg-aurum-obsidian px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-aurum-ivory">
+              Sold out
+            </span>
+          )}
         </Link>
         <button
           onClick={() => toggle(product.id)}
@@ -75,7 +80,7 @@ export function ProductCard({ product, className = "" }: { product: Product; cla
             )}
           </div>
           {!inStock && (
-            <p className="mt-1 text-xs uppercase tracking-wide text-aurum-obsidian/50">Out of stock</p>
+            <p className="mt-1 text-xs uppercase tracking-wide text-aurum-earth">Out of stock</p>
           )}
         </div>
         <button
@@ -84,7 +89,7 @@ export function ProductCard({ product, className = "" }: { product: Product; cla
           data-cursor="expand"
           className="mt-1 w-full shrink-0 whitespace-nowrap border border-aurum-obsidian/20 px-3 py-2 text-[10px] uppercase tracking-widest transition-colors hover:border-aurum-obsidian hover:bg-aurum-obsidian hover:text-aurum-ivory disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-current min-[420px]:w-auto"
         >
-          {justAdded ? "Added" : "Quick Add"}
+          {!inStock ? "Sold Out" : justAdded ? "Added" : "Quick Add"}
         </button>
       </div>
     </div>

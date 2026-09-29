@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { CategorySlug } from "@/lib/types";
 import type { ProductKind } from "@/lib/supabase/database.types";
 
@@ -119,7 +120,7 @@ export async function getAdminProduct(id: string): Promise<AdminProductDetail | 
     id: data.id,
     slug: data.slug,
     name: data.name,
-    category: ((data.product_categories as unknown as { categories: { slug: string } | null }[])[0]?.categories?.slug ?? "rings") as CategorySlug,
+    category: ((data.product_categories as unknown as { categories: { slug: string } | null }[])[0]?.categories?.slug ?? "") as CategorySlug,
     collections: (data.product_collections as unknown as { collections: { slug: string } | null }[]).map((pc) => pc.collections?.slug).filter((s): s is string => Boolean(s)),
     productKind: data.product_kind,
     description: data.description,
@@ -282,4 +283,53 @@ export async function updateProduct(id: string, input: AdminProductInput): Promi
 
   await saveCategoryAndCollections(supabase, id, input.category, input.collections);
   await saveVariants(supabase, id, input.variants);
+}
+
+export type DeleteProductOutcome = "deleted" | "archived";
+
+/**
+ * Removes a product for good. Past orders keep their line items (order_items has
+ * ON DELETE SET NULL and stores its own name/price snapshot), wishlists and deal links
+ * cascade, and variants/inventory/media rows cascade with the product.
+ *
+ * Two things need the service-role client, used only after the caller's staff check:
+ * - other customers' cart_items (RLS only lets a customer see their own cart), which
+ *   reference variants with ON DELETE RESTRICT and would otherwise block the delete;
+ * - removing the product's uploaded files from Storage.
+ *
+ * If something else still holds a RESTRICT reference (e.g. an inventory_movements
+ * audit row), the product is archived (is_active = false) instead so the history
+ * stays intact — the caller is told which happened.
+ */
+export async function deleteProduct(id: string): Promise<DeleteProductOutcome> {
+  const admin = createAdminClient();
+
+  const [{ data: variants }, { data: media }] = await Promise.all([
+    admin.from("product_variants").select("id").eq("product_id", id),
+    admin.from("product_media").select("storage_path").eq("product_id", id),
+  ]);
+
+  const variantIds = (variants ?? []).map((v) => v.id);
+  if (variantIds.length) {
+    const { error } = await admin.from("cart_items").delete().in("variant_id", variantIds);
+    if (error) throw error;
+  }
+
+  const { error } = await admin.from("products").delete().eq("id", id);
+  if (error) {
+    // 23503 = foreign_key_violation: something still references this product.
+    if (error.code === "23503") {
+      const { error: archiveError } = await admin.from("products").update({ is_active: false }).eq("id", id);
+      if (archiveError) throw archiveError;
+      return "archived";
+    }
+    throw error;
+  }
+
+  const storagePaths = (media ?? []).map((m) => m.storage_path).filter((p) => !p.startsWith("placeholder:"));
+  if (storagePaths.length) {
+    // Best-effort: the rows are already gone, so an orphaned file is harmless.
+    await admin.storage.from("product-media").remove(storagePaths);
+  }
+  return "deleted";
 }

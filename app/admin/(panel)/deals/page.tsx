@@ -4,5 +4,5 @@ import { AdminDealsClient } from "@/components/admin/AdminDealsClient";
 
 export default async function AdminDealsPage() {
   const [deals, products] = await Promise.all([getAdminDeals(), getAdminProductList()]);
-  return <AdminDealsClient deals={deals} products={products.map((p) => ({ id: p.id, name: p.name }))} />;
+  return <AdminDealsClient deals={deals} products={products.map((p) => ({ id: p.id, name: p.name, isActive: p.isActive }))} />;
 }

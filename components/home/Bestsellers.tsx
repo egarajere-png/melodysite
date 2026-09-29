@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getBestsellers } from "@/lib/supabase/catalogue";
-import { effectivePrice } from "@/lib/product";
+import { effectivePrice, leadImage } from "@/lib/product";
 import { RevealText } from "@/components/motion/RevealText";
 import { StaggerContainer, StaggerItem } from "@/components/motion/StaggerChildren";
 import { EditorialImage } from "@/components/ui/EditorialImage";
@@ -34,7 +34,7 @@ export async function Bestsellers() {
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <div className="h-16 w-16 shrink-0 overflow-hidden sm:h-24 sm:w-24">
-                  <EditorialImage image={product.images[0]} className="h-full w-full" />
+                  <EditorialImage image={leadImage(product)} className="h-full w-full" />
                 </div>
                 <span className="min-w-0 flex-1 truncate font-display text-lg transition-opacity group-hover:opacity-60 sm:text-2xl">
                   {product.name}

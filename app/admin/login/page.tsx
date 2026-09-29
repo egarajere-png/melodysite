@@ -20,9 +20,19 @@ function AdminLoginForm() {
 
     try {
       const supabase = createClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError || !data.user) {
         setError("Incorrect email or password.");
+        setSubmitting(false);
+        return;
+      }
+      // A valid customer login would otherwise be silently bounced to the storefront
+      // by the middleware — say why instead, and don't leave them half signed in here.
+      const { data: profile } = await supabase.from("profiles").select("role, is_active").eq("id", data.user.id).maybeSingle();
+      const isStaff = Boolean(profile?.is_active) && (profile?.role === "ADMIN" || profile?.role === "ASSISTANT");
+      if (!isStaff) {
+        await supabase.auth.signOut();
+        setError("This account doesn't have admin access.");
         setSubmitting(false);
         return;
       }

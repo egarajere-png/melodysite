@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useInView, useReducedMotion } from "framer-motion";
+import { useRef } from "react";
 import { easeLuxury, viewportOnce } from "@/lib/motion";
 
 /** Splits text into words and reveals them with a staggered clip/translate — used for large headings. */
@@ -19,13 +20,19 @@ export function RevealText({
 }) {
   const reduce = useReducedMotion();
   const words = text.split(" ");
+  // Watch the heading itself, not each word: every word starts translated fully out
+  // of its overflow-hidden mask, so an observer on the word sees it as clipped (never
+  // intersecting). After a client-side navigation that left headings stuck invisible
+  // until a hard refresh.
+  const ref = useRef<HTMLHeadingElement>(null);
+  const inView = useInView(ref, viewportOnce);
 
   if (reduce) {
     return <Tag className={className}>{text}</Tag>;
   }
 
   return (
-    <Tag className={className}>
+    <Tag ref={ref} className={className}>
       <span className="sr-only">{text}</span>
       <span aria-hidden className="inline">
         {words.map((word, i) => (
@@ -33,8 +40,7 @@ export function RevealText({
             <motion.span
               className="inline-block"
               initial={{ y: "110%" }}
-              whileInView={{ y: "0%" }}
-              viewport={viewportOnce}
+              animate={inView ? { y: "0%" } : undefined}
               transition={{ duration: 0.8, delay: delay + i * wordDelay, ease: easeLuxury }}
             >
               {word}

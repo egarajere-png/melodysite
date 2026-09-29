@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, Search, ShoppingBag, User } from "lucide-react";
+import { Menu, Search, ShoppingBag } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/context/CartContext";
 import { MegaMenu } from "@/components/layout/MegaMenu";
+import { UserMenu, type NavAccount } from "@/components/layout/UserMenu";
 import type { Category } from "@/lib/types";
 
 const NAV_LINKS = [
@@ -13,12 +14,15 @@ const NAV_LINKS = [
   { href: "/contact", label: "Contact" },
 ];
 
-export function Navbar({ onOpenMenu, categories }: { onOpenMenu: () => void; categories: Category[] }) {
+export function Navbar({ onOpenMenu, categories, account }: { onOpenMenu: () => void; categories: Category[]; account: NavAccount | null }) {
   const pathname = usePathname();
   const { count, openCart } = useCart();
   const [scrolled, setScrolled] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // After "Shop" itself is clicked the pointer is still over it — without this the
+  // menu would reopen immediately. Cleared once the pointer leaves the Shop area.
+  const suppressOpen = useRef(false);
   const isHome = pathname === "/";
 
   useEffect(() => {
@@ -31,11 +35,19 @@ export function Navbar({ onOpenMenu, categories }: { onOpenMenu: () => void; cat
   }, []);
 
   function openShop() {
+    if (suppressOpen.current) return;
     if (closeTimer.current) clearTimeout(closeTimer.current);
     setShopOpen(true);
   }
   function scheduleCloseShop() {
+    suppressOpen.current = false;
     closeTimer.current = setTimeout(() => setShopOpen(false), 120);
+  }
+  // Clicking "Shop" navigates, so close the menu the same way a category click does.
+  function handleShopClick() {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    suppressOpen.current = true;
+    setShopOpen(false);
   }
 
   const transparent = isHome && !scrolled && !shopOpen;
@@ -47,7 +59,7 @@ export function Navbar({ onOpenMenu, categories }: { onOpenMenu: () => void; cat
       }`}
     >
       <div
-        className={`container-aurum flex h-20 items-center justify-between transition-colors duration-500 ${
+        className={`container-aurum grid h-20 grid-cols-[1fr_auto_1fr] items-center gap-3 transition-colors duration-500 ${
           transparent ? "text-aurum-ivory" : "text-aurum-obsidian"
         }`}
       >
@@ -55,7 +67,7 @@ export function Navbar({ onOpenMenu, categories }: { onOpenMenu: () => void; cat
           onClick={onOpenMenu}
           aria-label="Open menu"
           data-cursor="open"
-          className="flex items-center gap-2 text-xs uppercase tracking-widest"
+          className="flex items-center gap-2 justify-self-start text-xs uppercase tracking-widest"
         >
           <Menu size={18} strokeWidth={1.5} />
           <span className="hidden sm:inline">Menu</span>
@@ -64,18 +76,19 @@ export function Navbar({ onOpenMenu, categories }: { onOpenMenu: () => void; cat
         <Link
           href="/"
           data-cursor="expand"
-          className="font-display text-base tracking-[0.25em] sm:text-xl"
+          className="whitespace-nowrap font-display text-[13px] tracking-[0.18em] min-[400px]:text-base min-[400px]:tracking-[0.25em] sm:text-xl"
         >
           AURUM ENTONET
         </Link>
 
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-3 justify-self-end sm:gap-5">
           <nav className="hidden items-center gap-7 text-xs uppercase tracking-widest md:flex">
             <div onMouseEnter={openShop} onMouseLeave={scheduleCloseShop}>
               <Link
                 href="/shop"
                 data-cursor="shop"
                 onFocus={openShop}
+                onClick={handleShopClick}
                 aria-expanded={shopOpen}
                 aria-haspopup="true"
                 className="transition-opacity hover:opacity-60"
@@ -92,18 +105,16 @@ export function Navbar({ onOpenMenu, categories }: { onOpenMenu: () => void; cat
           <button aria-label="Search" className="hidden sm:block" data-cursor="expand">
             <Search size={18} strokeWidth={1.5} />
           </button>
-          <Link href="/account" aria-label="Account" className="hidden sm:block" data-cursor="expand">
-            <User size={18} strokeWidth={1.5} />
-          </Link>
+          <UserMenu account={account} />
           <button
             onClick={openCart}
             aria-label={`Open bag, ${count} item${count === 1 ? "" : "s"}`}
-            className="relative"
+            className="relative flex h-8 w-8 items-center justify-center"
             data-cursor="expand"
           >
             <ShoppingBag size={18} strokeWidth={1.5} />
             {count > 0 && (
-              <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-aurum-gold text-[9px] font-medium text-aurum-obsidian">
+              <span className="absolute -right-1 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-aurum-gold text-[9px] font-medium text-aurum-obsidian">
                 {count}
               </span>
             )}

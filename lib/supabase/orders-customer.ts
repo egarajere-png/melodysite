@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { storedImageRef } from "@/lib/product-media";
 import type { OrderStatus, FulfilmentMethod } from "@/lib/supabase/database.types";
 import type { ImageRef } from "@/lib/types";
 
@@ -43,13 +44,7 @@ export interface OrderDetail extends OrderSummary {
 }
 
 export function itemImageFromPath(imagePath: string | null, name: string): ImageRef {
-  if (!imagePath) return { id: name, alt: name, kind: "product", tone: "sand" };
-  if (imagePath.startsWith("placeholder:")) {
-    const [, kind, tone, id] = imagePath.split(":");
-    return { id, alt: name, kind: (kind as ImageRef["kind"]) ?? "product", tone: (tone as ImageRef["tone"]) ?? "sand" };
-  }
-  if (imagePath.startsWith("http")) return { id: name, alt: name, kind: "product", url: imagePath };
-  return { id: name, alt: name, kind: "product", url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-media/${imagePath}` };
+  return storedImageRef(name, imagePath, name);
 }
 
 export async function getCustomerOrders(customerId: string): Promise<OrderSummary[]> {

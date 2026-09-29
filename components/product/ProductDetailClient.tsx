@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { Product, ProductVariant } from "@/lib/types";
-import { effectivePrice } from "@/lib/product";
+import { effectivePrice, galleryFor, leadImage } from "@/lib/product";
 import { formatKES } from "@/lib/format";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { AccordionItem } from "@/components/motion/SmoothAccordion";
@@ -31,14 +31,19 @@ export function ProductDetailClient({ product }: { product: Product }) {
     [product]
   );
 
-  const [selectedColour, setSelectedColour] = useState<string | undefined>(colours[0]);
-  const [selectedSize, setSelectedSize] = useState<string | undefined>(sizes[0]);
+  // Open on something the customer can actually buy, rather than whichever variant
+  // happens to be listed first.
+  const firstInStock = product.variants.find((v) => v.stock > 0) ?? product.variants[0];
+  const productSoldOut = !product.variants.some((v) => v.stock > 0);
+
+  const [selectedColour, setSelectedColour] = useState<string | undefined>(firstInStock?.colour ?? colours[0]);
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(firstInStock?.size ?? sizes[0]);
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showWorn, setShowWorn] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
 
-  const galleryImages = product.images;
+  const galleryImages = galleryFor(product, selectedColour);
   const currentVariant: ProductVariant | undefined = matchVariant(
     product,
     colours.length ? selectedColour : undefined,
@@ -52,10 +57,26 @@ export function ProductDetailClient({ product }: { product: Product }) {
       (v) => (colours.length === 0 || v.colour === selectedColour) && v.size === size && v.stock > 0
     );
   }
-  function isColourAvailableForSize(colour: string) {
-    return product.variants.some(
-      (v) => (sizes.length === 0 || v.size === selectedSize) && v.colour === colour && v.stock > 0
-    );
+  function isColourInStock(colour: string) {
+    return product.variants.some((v) => v.colour === colour && v.stock > 0);
+  }
+
+  function selectColour(colour: string) {
+    setSelectedColour(colour);
+    setActiveImageIndex(0);
+    setShowWorn(false);
+    setQuantity(1);
+    // Keep the chosen size if this colour has it in stock; otherwise move to one it does.
+    const sizeStillAvailable = product.variants.some((v) => v.colour === colour && v.size === selectedSize && v.stock > 0);
+    if (!sizeStillAvailable) {
+      const alternative = product.variants.find((v) => v.colour === colour && v.stock > 0);
+      if (alternative?.size) setSelectedSize(alternative.size);
+    }
+  }
+
+  function selectSize(size: string) {
+    setSelectedSize(size);
+    setQuantity(1);
   }
 
   function handleAddToBag() {
@@ -69,7 +90,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
         name: product.name,
         variantLabel: [currentVariant.colour, currentVariant.size].filter(Boolean).join(" / ") || "One Size",
         unitPrice: price,
-        image: product.images[0],
+        image: leadImage(product, currentVariant.colour),
         maxStock: currentVariant.stock,
       },
       quantity
@@ -94,9 +115,15 @@ export function ProductDetailClient({ product }: { product: Product }) {
           onMouseLeave={() => setShowWorn(false)}
         >
           <EditorialImage
-            image={showWorn && product.wornImage ? product.wornImage : galleryImages[activeImageIndex]}
+            image={showWorn && product.wornImage ? product.wornImage : (galleryImages[activeImageIndex] ?? galleryImages[0])}
             className="h-full w-full"
+            priority
           />
+          {productSoldOut && (
+            <span className="absolute left-4 top-4 bg-aurum-obsidian px-3 py-1.5 text-[10px] uppercase tracking-[0.25em] text-aurum-ivory">
+              Sold out
+            </span>
+          )}
         </div>
         {(galleryImages.length > 1 || product.wornImage) && (
           <div className="mt-4 flex gap-3">
@@ -150,15 +177,20 @@ export function ProductDetailClient({ product }: { product: Product }) {
             </p>
             <div className="flex flex-wrap gap-2">
               {colours.map((c) => {
-                const available = isColourAvailableForSize(c);
+                // Sold-out colours stay selectable so customers can still see them,
+                // but they're marked and can't be added to the bag.
+                const available = isColourInStock(c);
                 return (
                   <button
                     key={c}
-                    onClick={() => setSelectedColour(c)}
-                    disabled={!available}
+                    onClick={() => selectColour(c)}
+                    aria-pressed={selectedColour === c}
+                    aria-label={available ? c : `${c} (sold out)`}
                     className={`border px-4 py-2 text-xs uppercase tracking-wide transition-colors ${
-                      selectedColour === c ? "border-aurum-obsidian bg-aurum-obsidian text-aurum-ivory" : "border-aurum-obsidian/25"
-                    } disabled:cursor-not-allowed disabled:opacity-30`}
+                      selectedColour === c
+                        ? `border-aurum-obsidian bg-aurum-obsidian ${available ? "text-aurum-ivory" : "text-aurum-ivory/60"}`
+                        : `border-aurum-obsidian/25 ${available ? "" : "text-aurum-obsidian/40"}`
+                    } ${available ? "" : "line-through decoration-1"}`}
                   >
                     {c}
                   </button>
@@ -179,11 +211,12 @@ export function ProductDetailClient({ product }: { product: Product }) {
                 return (
                   <button
                     key={s}
-                    onClick={() => setSelectedSize(s)}
+                    onClick={() => selectSize(s)}
                     disabled={!available}
+                    aria-label={available ? s : `${s} (sold out)`}
                     className={`border px-4 py-2 text-xs uppercase tracking-wide transition-colors ${
-                      selectedSize === s ? "border-aurum-obsidian bg-aurum-obsidian text-aurum-ivory" : "border-aurum-obsidian/25"
-                    } disabled:cursor-not-allowed disabled:opacity-30`}
+                      selectedSize === s && available ? "border-aurum-obsidian bg-aurum-obsidian text-aurum-ivory" : "border-aurum-obsidian/25"
+                    } disabled:cursor-not-allowed disabled:line-through disabled:opacity-35`}
                   >
                     {s}
                   </button>
@@ -193,8 +226,16 @@ export function ProductDetailClient({ product }: { product: Product }) {
           </div>
         )}
 
-        <p className="mt-4 text-xs uppercase tracking-wide text-aurum-obsidian/50">
-          {currentVariant ? (inStock ? `${currentVariant.stock} available` : "Out of stock") : "Select options"}
+        <p className={`mt-4 text-xs uppercase tracking-wide ${inStock ? "text-aurum-obsidian/50" : "text-aurum-earth"}`} aria-live="polite">
+          {productSoldOut
+            ? "Sold out — this piece is currently unavailable"
+            : !currentVariant
+              ? "This combination isn't available — choose another option"
+              : inStock
+                ? currentVariant.stock <= 3
+                  ? `Only ${currentVariant.stock} left`
+                  : "In stock"
+                : `${[currentVariant.colour, currentVariant.size].filter(Boolean).join(" / ") || "This option"} is out of stock — choose another option`}
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-4">

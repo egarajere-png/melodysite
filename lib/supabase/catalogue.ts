@@ -1,4 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
 import { createPublicClient } from "@/lib/supabase/public";
+import { storedImageRef } from "@/lib/product-media";
 import type { Category, CategorySlug, CollectionSummary, Deal, ImageRef, Product, ProductVariant } from "@/lib/types";
 
 /**
@@ -26,7 +29,10 @@ const PRODUCT_SELECT = `
       product_option_values ( value, product_options ( name ) )
     )
   ),
-  product_media ( id, storage_path, alt_text, media_kind, sort_order, is_primary )
+  product_media (
+    id, storage_path, alt_text, media_kind, sort_order, is_primary, variant_id,
+    product_variants ( variant_option_values ( product_option_values ( value, product_options ( name ) ) ) )
+  )
 `;
 
 type RawProductRow = {
@@ -62,40 +68,55 @@ type RawProductRow = {
     media_kind: "PRODUCT" | "WORN" | "EDITORIAL";
     sort_order: number;
     is_primary: boolean;
+    variant_id: string | null;
+    product_variants: { variant_option_values: RawOptionValueLink[] } | null;
   }[];
 };
 
+type RawOptionValueLink = { product_option_values: { value: string; product_options: { name: string } | null } | null };
+
+function optionValue(links: RawOptionValueLink[], optionName: "Colour" | "Size"): string | undefined {
+  return links.find((l) => l.product_option_values?.product_options?.name === optionName)?.product_option_values?.value;
+}
+
+function toImageRef(media: RawProductRow["product_media"][number], fallbackAlt: string): ImageRef {
+  return storedImageRef(media.id, media.storage_path, media.alt_text || fallbackAlt, media.media_kind.toLowerCase() as ImageRef["kind"]);
+}
+
 /**
- * product_media.storage_path is either a real Supabase Storage path (once real
- * photography replaces placeholders) or a `placeholder:<kind>:<tone>:<id>` marker
- * carried over from the mock catalogue. This is the one place that distinction is
- * resolved, so <EditorialImage> and the rest of the UI never need to know which case
- * they're in. Supabase's public object URL is a fixed, documented shape, so building
- * it here needs no network call and no client instance.
+ * How product_media rows map onto the storefront:
+ * - WORN (no variant)            → the hover image
+ * - PRODUCT/EDITORIAL, no variant → colour-independent gallery; is_primary first = main image
+ * - any row with a variant_id    → that variant's colour gallery. Images are pinned to a
+ *   variant (not a free-text colour) so they follow the variant if its colour is renamed,
+ *   and every size of the same colour shares them.
  */
-function toImageRef(media: RawProductRow["product_media"][number]): ImageRef {
-  if (media.storage_path.startsWith("placeholder:")) {
-    const [, kind, tone, id] = media.storage_path.split(":");
-    return {
-      id,
-      alt: media.alt_text ?? "",
-      kind: (kind as ImageRef["kind"]) ?? "product",
-      tone: (tone as ImageRef["tone"]) ?? "sand",
-    };
+function groupMedia(row: RawProductRow) {
+  const sorted = [...row.product_media]
+    .filter((m) => !m.storage_path.startsWith("placeholder:"))
+    .sort((a, b) => Number(b.is_primary) - Number(a.is_primary) || a.sort_order - b.sort_order);
+
+  const images: ImageRef[] = [];
+  const colourImages: Record<string, ImageRef[]> = {};
+  let wornImage: ImageRef | undefined;
+
+  for (const m of sorted) {
+    if (m.variant_id) {
+      const colour = optionValue(m.product_variants?.variant_option_values ?? [], "Colour");
+      if (!colour) continue;
+      (colourImages[colour] ??= []).push(toImageRef(m, `${row.name} — ${colour}`));
+    } else if (m.media_kind === "WORN") {
+      wornImage ??= toImageRef(m, `${row.name} worn`);
+    } else {
+      images.push(toImageRef(m, row.name));
+    }
   }
-  return {
-    id: media.id,
-    alt: media.alt_text ?? "",
-    kind: media.media_kind.toLowerCase() as ImageRef["kind"],
-    url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-media/${media.storage_path}`,
-  };
+  return { images, wornImage, colourImages };
 }
 
 function toVariant(v: RawProductRow["product_variants"][number]): ProductVariant {
-  const colour = v.variant_option_values.find((vov) => vov.product_option_values?.product_options?.name === "Colour")
-    ?.product_option_values?.value;
-  const size = v.variant_option_values.find((vov) => vov.product_option_values?.product_options?.name === "Size")
-    ?.product_option_values?.value;
+  const colour = optionValue(v.variant_option_values, "Colour");
+  const size = optionValue(v.variant_option_values, "Size");
   return {
     id: v.id,
     sku: v.sku,
@@ -107,11 +128,7 @@ function toVariant(v: RawProductRow["product_variants"][number]): ProductVariant
 }
 
 function toProduct(row: RawProductRow, activeDeal: Deal | null): Product {
-  const images = row.product_media
-    .filter((m) => m.media_kind === "PRODUCT" || m.media_kind === "EDITORIAL")
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map(toImageRef);
-  const wornMedia = row.product_media.find((m) => m.media_kind === "WORN");
+  const { images, wornImage, colourImages } = groupMedia(row);
   const inDeal = activeDeal?.productIds.includes(row.id) ?? false;
   const salePrice = inDeal ? Math.round(row.base_price * (1 - (activeDeal as Deal).discountPercent / 100)) : undefined;
 
@@ -119,7 +136,7 @@ function toProduct(row: RawProductRow, activeDeal: Deal | null): Product {
     id: row.id,
     slug: row.slug,
     name: row.name,
-    category: (row.product_categories[0]?.categories?.slug ?? "rings") as CategorySlug,
+    category: row.product_categories[0]?.categories?.slug ?? "",
     collections: row.product_collections.map((pc) => pc.collections?.slug).filter((s): s is string => Boolean(s)),
     price: row.base_price,
     salePrice,
@@ -129,7 +146,8 @@ function toProduct(row: RawProductRow, activeDeal: Deal | null): Product {
     shippingInfo: row.shipping_info ?? "",
     returnsInfo: row.returns_info ?? "",
     images,
-    wornImage: wornMedia ? toImageRef(wornMedia) : undefined,
+    wornImage,
+    colourImages,
     variants: row.product_variants.filter((v) => v.is_active).map(toVariant),
     isBestseller: row.is_bestseller,
     createdAt: row.created_at,
@@ -237,6 +255,15 @@ export async function getAllProductSlugs(): Promise<string[]> {
   return (data ?? []).map((r) => r.slug);
 }
 
+/** Category tiles use /public/images/categories/<slug>.jpg when that file exists,
+ * otherwise the shared default.jpg — so adding real photography for a category is
+ * just dropping a correctly named file into that folder. */
+function categoryImage(slug: string, name: string): ImageRef {
+  const file = `${slug}.jpg`;
+  const exists = fs.existsSync(path.join(process.cwd(), "public", "images", "categories", file));
+  return { id: `cat-${slug}`, alt: `Aurum Entonet ${name.toLowerCase()}`, kind: "editorial", url: `/images/categories/${exists ? file : "default.jpg"}` };
+}
+
 export async function getActiveCategories(): Promise<Category[]> {
   const supabase = createPublicClient();
   const { data, error } = await supabase
@@ -248,7 +275,7 @@ export async function getActiveCategories(): Promise<Category[]> {
   return (data ?? []).map((c) => ({
     slug: c.slug as CategorySlug,
     name: c.name,
-    image: { id: `cat-${c.slug}`, alt: `Aurum Entonet ${c.name.toLowerCase()}`, kind: "editorial", tone: "sand" },
+    image: categoryImage(c.slug, c.name),
   }));
 }
 

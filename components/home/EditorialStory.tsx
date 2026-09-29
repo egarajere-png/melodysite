@@ -1,13 +1,12 @@
 import { ParallaxImage } from "@/components/motion/ParallaxImage";
 import { RevealText } from "@/components/motion/RevealText";
 import { FadeIn } from "@/components/motion/FadeIn";
-
-const storyImage = { id: "home-editorial-story", alt: "Aurum Entonet editorial story", kind: "editorial" as const, tone: "plum" as const };
+import { SITE_IMAGES } from "@/lib/site-images";
 
 export function EditorialStory() {
   return (
     <section className="relative h-[85vh] min-h-[560px] overflow-hidden bg-aurum-deep text-aurum-ivory">
-      <ParallaxImage image={storyImage} className="absolute inset-0 h-full w-full" strength={70} />
+      <ParallaxImage image={SITE_IMAGES.homeEditorialStory} className="absolute inset-0 h-full w-full" strength={70} />
       <div className="absolute inset-0 bg-gradient-to-r from-aurum-obsidian/70 via-aurum-obsidian/20 to-transparent" />
 
       <div className="container-aurum relative z-10 flex h-full items-center">

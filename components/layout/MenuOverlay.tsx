@@ -7,14 +7,15 @@ import { X } from "lucide-react";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import type { Category, ImageRef } from "@/lib/types";
 import { easeEditorial } from "@/lib/motion";
+import { SITE_IMAGES } from "@/lib/site-images";
 
 const MENU_ITEMS: { label: string; href: string; preview: ImageRef }[] = [
-  { label: "Shop", href: "/shop", preview: { id: "menu-shop", alt: "Shop all", kind: "editorial", tone: "plum" } },
-  { label: "About Aurum", href: "/about", preview: { id: "menu-about", alt: "About Aurum Entonet", kind: "editorial", tone: "obsidian" } },
-  { label: "Contact", href: "/contact", preview: { id: "menu-contact", alt: "Contact Aurum Entonet", kind: "editorial", tone: "sand" } },
-  { label: "New Arrivals", href: "/shop?sort=new", preview: { id: "menu-new", alt: "New arrivals", kind: "editorial", tone: "deep" } },
-  { label: "Bestsellers", href: "/shop?sort=bestsellers", preview: { id: "menu-best", alt: "Bestsellers", kind: "editorial", tone: "earth" } },
-  { label: "Deals", href: "/shop?deal=true", preview: { id: "menu-deals", alt: "The Aurum Edit", kind: "editorial", tone: "ivory" } },
+  { label: "Shop", href: "/shop", preview: SITE_IMAGES.menuShop },
+  { label: "About Aurum", href: "/about", preview: SITE_IMAGES.menuAbout },
+  { label: "Contact", href: "/contact", preview: SITE_IMAGES.menuContact },
+  { label: "New Arrivals", href: "/shop?sort=new", preview: SITE_IMAGES.menuNew },
+  { label: "Bestsellers", href: "/shop?sort=bestsellers", preview: SITE_IMAGES.menuBestsellers },
+  { label: "Deals", href: "/shop?deal=true", preview: SITE_IMAGES.menuDeals },
 ];
 
 export function MenuOverlay({

@@ -5,8 +5,10 @@ import { Plus } from "lucide-react";
 import { createExpenseAction } from "@/app/actions/admin-expenses";
 import { formatKES, formatDate } from "@/lib/format";
 import type { Expense } from "@/lib/supabase/expenses-admin";
+import { useToast } from "@/components/admin/Toast";
 
 export function AdminExpensesClient({ expenses: initial }: { expenses: Expense[] }) {
+  const toast = useToast();
   const [expenses, setExpenses] = useState(initial);
   const [showForm, setShowForm] = useState(false);
   const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -23,8 +25,10 @@ export function AdminExpensesClient({ expenses: initial }: { expenses: Expense[]
     const result = await createExpenseAction({ expenseDate, category: category.trim(), description: description.trim(), amount });
     if (!result.ok) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success(`Expense of ${formatKES(amount)} has been recorded.`);
     setExpenses((prev) => [{ id: `temp-${Date.now()}`, expenseDate, category: category.trim(), description: description.trim() || null, amount }, ...prev]);
     setCategory("");
     setDescription("");

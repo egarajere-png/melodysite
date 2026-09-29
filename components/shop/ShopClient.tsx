@@ -10,6 +10,8 @@ export type SortKey = "featured" | "newest" | "price-asc" | "price-desc" | "best
 
 export interface ShopFilters {
   category: CategorySlug | "all";
+  /** Collection slug, or "" for none. */
+  collection: string;
   kind: "set" | "piece" | "all";
   price: string; // "all" | "under-2000" | "under-5000" | "over-5000"
   finishes: string[];
@@ -45,9 +47,12 @@ export function ShopClient({
   materialFinishes,
   filters,
   hasActiveDeal,
+  collectionName,
 }: {
   products: Product[];
   categories: Category[];
+  /** Display name of the collection being filtered by, if any. */
+  collectionName?: string;
   materialFinishes: { slug: string; name: string }[];
   filters: ShopFilters;
   hasActiveDeal: boolean;
@@ -60,6 +65,7 @@ export function ShopClient({
   function updateParams(patch: Record<string, string | null>) {
     const params = new URLSearchParams();
     if (filters.category !== "all") params.set("category", filters.category);
+    if (filters.collection) params.set("collection", filters.collection);
     if (filters.kind !== "all") params.set("kind", filters.kind);
     if (filters.price !== "all") params.set("price", filters.price);
     if (filters.finishes.length) params.set("finish", filters.finishes.join(","));
@@ -92,6 +98,16 @@ export function ShopClient({
 
   return (
     <div>
+      {filters.collection && (
+        <button
+          onClick={() => updateParams({ collection: null })}
+          className="mb-4 flex items-center gap-2 border border-aurum-obsidian bg-aurum-obsidian px-4 py-2 text-xs uppercase tracking-widest text-aurum-ivory"
+          aria-label={`Remove collection filter ${collectionName ?? filters.collection}`}
+        >
+          Collection: {collectionName ?? filters.collection}
+          <X size={13} strokeWidth={1.5} />
+        </button>
+      )}
       <div className="no-scrollbar mb-6 flex gap-2 overflow-x-auto pb-2">
         <button
           onClick={() => updateParams({ category: null })}

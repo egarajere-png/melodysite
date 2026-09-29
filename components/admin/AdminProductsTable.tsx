@@ -2,12 +2,39 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Plus, Search } from "lucide-react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { formatKES } from "@/lib/format";
+import { deleteProductAction } from "@/app/actions/admin-products";
+import { useToast } from "@/components/admin/Toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import type { AdminProductListItem } from "@/lib/supabase/products-admin";
 
-export function AdminProductsTable({ products }: { products: AdminProductListItem[] }) {
+export function AdminProductsTable({ products: initial }: { products: AdminProductListItem[] }) {
+  const toast = useToast();
+  const [products, setProducts] = useState(initial);
   const [query, setQuery] = useState("");
+  const [pendingDelete, setPendingDelete] = useState<AdminProductListItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    const target = pendingDelete;
+    setDeleting(true);
+    const result = await deleteProductAction(target.id, target.name);
+    setDeleting(false);
+    setPendingDelete(null);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    if (result.outcome === "deleted") {
+      setProducts((prev) => prev.filter((p) => p.id !== target.id));
+      toast.success(`${target.name} has been deleted.`);
+    } else {
+      setProducts((prev) => prev.map((p) => (p.id === target.id ? { ...p, isActive: false } : p)));
+      toast.success(`${target.name} is referenced by stock history, so it has been archived and hidden from the shop instead.`);
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -39,7 +66,7 @@ export function AdminProductsTable({ products }: { products: AdminProductListIte
       </div>
 
       <div className="overflow-x-auto border border-aurum-obsidian/10 bg-white">
-        <table className="w-full min-w-[720px] text-left text-sm">
+        <table className="w-full min-w-[860px] text-left text-sm">
           <thead>
             <tr className="border-b border-aurum-obsidian/10 text-xs uppercase tracking-widest text-aurum-obsidian/50">
               <th className="px-4 py-3">Product</th>
@@ -47,12 +74,13 @@ export function AdminProductsTable({ products }: { products: AdminProductListIte
               <th className="px-4 py-3">Price</th>
               <th className="px-4 py-3">Stock</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-aurum-obsidian/50">
+                <td colSpan={6} className="px-4 py-8 text-center text-aurum-obsidian/50">
                   No products match that search.
                 </td>
               </tr>
@@ -68,6 +96,9 @@ export function AdminProductsTable({ products }: { products: AdminProductListIte
                   <td className="px-4 py-3">{formatKES(p.price)}</td>
                   <td className="px-4 py-3">{p.totalStock}</td>
                   <td className="px-4 py-3">
+                    {!p.isActive ? (
+                      <span className="bg-aurum-obsidian/10 px-2 py-1 text-xs uppercase tracking-wide text-aurum-obsidian/60">Archived</span>
+                    ) : (
                     <span
                       className={`px-2 py-1 text-xs uppercase tracking-wide ${
                         p.totalStock === 0
@@ -79,6 +110,26 @@ export function AdminProductsTable({ products }: { products: AdminProductListIte
                     >
                       {p.totalStock === 0 ? "Out of stock" : p.totalStock <= 5 ? "Low stock" : "In stock"}
                     </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <Link
+                        href={`/admin/products/${p.id}`}
+                        className="flex items-center gap-1.5 border border-aurum-obsidian/15 px-3 py-1.5 text-xs uppercase tracking-widest transition-colors hover:border-aurum-obsidian hover:bg-aurum-obsidian hover:text-aurum-ivory"
+                      >
+                        <Pencil size={13} strokeWidth={1.5} />
+                        Edit
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDelete(p)}
+                        className="flex items-center gap-1.5 border border-aurum-earth/30 px-3 py-1.5 text-xs uppercase tracking-widest text-aurum-earth transition-colors hover:bg-aurum-earth hover:text-aurum-ivory"
+                      >
+                        <Trash2 size={13} strokeWidth={1.5} />
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -86,6 +137,20 @@ export function AdminProductsTable({ products }: { products: AdminProductListIte
           </tbody>
         </table>
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="Delete product?"
+        message={
+          pendingDelete
+            ? `${pendingDelete.name} will be removed from the shop, from any customer bags and wishlists, and its images will be deleted. Past orders keep their record of it. This can't be undone.`
+            : ""
+        }
+        confirmLabel="Delete"
+        busy={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }

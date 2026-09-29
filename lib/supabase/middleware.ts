@@ -35,6 +35,14 @@ export async function updateSession(request: NextRequest) {
   // /admin/login is the staff sign-in page itself — it must never be gated by the
   // same check it exists to satisfy, or an unauthenticated staff member could never
   // reach it.
+  // Already-signed-in staff have no reason to see the sign-in form again.
+  if (request.nextUrl.pathname === "/admin/login" && user) {
+    const { data: profile } = await supabase.from("profiles").select("role, is_active").eq("id", user.id).single();
+    if (profile?.is_active && STAFF_ROLES.has(profile.role)) {
+      return NextResponse.redirect(new URL("/admin", request.url));
+    }
+  }
+
   if (request.nextUrl.pathname.startsWith("/admin") && request.nextUrl.pathname !== "/admin/login") {
     if (!user) {
       const redirectUrl = new URL(`/admin/login?next=${encodeURIComponent(request.nextUrl.pathname)}`, request.url);

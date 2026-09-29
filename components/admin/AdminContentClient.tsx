@@ -5,8 +5,10 @@ import { Plus } from "lucide-react";
 import { saveContentBlockAction } from "@/app/actions/admin-content";
 import { formatDate } from "@/lib/format";
 import type { ContentBlock } from "@/lib/supabase/content-admin";
+import { useToast } from "@/components/admin/Toast";
 
 export function AdminContentClient({ blocks: initial }: { blocks: ContentBlock[] }) {
+  const toast = useToast();
   const [blocks, setBlocks] = useState(initial);
   const [showForm, setShowForm] = useState(false);
   const [key, setKey] = useState("");
@@ -33,8 +35,10 @@ export function AdminContentClient({ blocks: initial }: { blocks: ContentBlock[]
     const result = await saveContentBlockAction(key, json);
     if (!result.ok) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success(`Content block "${key.trim()}" has been ${editingKey ? "updated" : "saved"}.`);
     const parsed = JSON.parse(json);
     setBlocks((prev) => {
       const others = prev.filter((b) => b.key !== key.trim());

@@ -3,13 +3,14 @@ import { RevealText } from "@/components/motion/RevealText";
 import { FadeIn } from "@/components/motion/FadeIn";
 import { MagneticButton } from "@/components/motion/MagneticButton";
 import { EditorialImage } from "@/components/ui/EditorialImage";
+import { SITE_IMAGES } from "@/lib/site-images";
 
 export default function NotFound() {
   return (
     <div className="relative flex min-h-[85vh] items-center overflow-hidden bg-aurum-obsidian text-aurum-ivory">
       <div className="pointer-events-none absolute -right-24 top-1/2 hidden h-[520px] w-[420px] -translate-y-1/2 opacity-40 md:block">
         <EditorialImage
-          image={{ id: "404-piece", alt: "", kind: "product", tone: "plum" }}
+          image={SITE_IMAGES.notFound}
           className="h-full w-full"
         />
       </div>

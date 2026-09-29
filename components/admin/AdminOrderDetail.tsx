@@ -7,6 +7,7 @@ import { STEP_LABELS } from "@/components/orders/OrderTimeline";
 import { updateOrderStatusAction } from "@/app/actions/admin-orders";
 import type { OrderStatus } from "@/lib/supabase/database.types";
 import type { AdminOrderDetail as AdminOrderDetailType } from "@/lib/supabase/orders-admin";
+import { useToast } from "@/components/admin/Toast";
 
 const ALL_STATUSES: OrderStatus[] = [
   "PAYMENT_PENDING",
@@ -22,6 +23,7 @@ const ALL_STATUSES: OrderStatus[] = [
 ];
 
 export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
+  const toast = useToast();
   const [status, setStatus] = useState<OrderStatus>(order.status);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -33,7 +35,12 @@ export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
     const result = await updateOrderStatusAction(order.id, status, note.trim() || undefined);
     setSaving(false);
     setMessage(result.ok ? "Status updated." : result.error);
-    if (result.ok) setNote("");
+    if (result.ok) {
+      setNote("");
+      toast.success(`Order ${order.orderNumber} is now ${STEP_LABELS[status]}.`);
+    } else {
+      toast.error(result.error);
+    }
   }
 
   return (

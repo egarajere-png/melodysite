@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { RevealText } from "@/components/motion/RevealText";
 import { ShopClient, type ShopFilters, type SortKey } from "@/components/shop/ShopClient";
-import { getActiveCategories, getMaterialFinishes, getProducts, getActiveDeal } from "@/lib/supabase/catalogue";
+import { getActiveCategories, getCollections, getMaterialFinishes, getProducts, getActiveDeal } from "@/lib/supabase/catalogue";
 import type { CategorySlug } from "@/lib/types";
 
 export const metadata: Metadata = {
@@ -31,6 +31,7 @@ export default async function ShopPage({
 
   const filters: ShopFilters = {
     category: (one(sp.category) as CategorySlug) || "all",
+    collection: one(sp.collection) ?? "",
     kind: one(sp.kind) === "set" || one(sp.kind) === "piece" ? (one(sp.kind) as "set" | "piece") : "all",
     price: one(sp.price) && PRICE_BANDS[one(sp.price) as string] ? (one(sp.price) as string) : "all",
     finishes: one(sp.finish) ? (one(sp.finish) as string).split(",").filter(Boolean) : [],
@@ -46,6 +47,7 @@ export default async function ShopPage({
   const [products, categories, materialFinishes, activeDeal] = await Promise.all([
     getProducts({
       category: filters.category === "all" ? undefined : filters.category,
+      collection: filters.collection || undefined,
       productKind: filters.kind === "set" ? "SET" : filters.kind === "piece" ? "INDIVIDUAL_PIECE" : undefined,
       materialFinishes: filters.finishes.length ? filters.finishes : undefined,
       audience: filters.men ? "men" : undefined,
@@ -60,17 +62,20 @@ export default async function ShopPage({
     getMaterialFinishes(),
     getActiveDeal(),
   ]);
+  const collection = filters.collection ? (await getCollections()).find((c) => c.slug === filters.collection) : undefined;
 
   return (
     <div className="pt-32 pb-24 sm:pt-40">
       <div className="container-aurum">
-        <RevealText as="h1" text="Shop All" className="mb-10 font-display text-4xl sm:text-5xl" />
+        <RevealText as="h1" text={collection?.name ?? "Shop All"} className={`${collection?.description ? "mb-3" : "mb-10"} font-display text-4xl sm:text-5xl`} />
+        {collection?.description && <p className="mb-10 max-w-xl text-sm text-aurum-obsidian/60">{collection.description}</p>}
         <ShopClient
           products={products}
           categories={categories}
           materialFinishes={materialFinishes}
           filters={filters}
           hasActiveDeal={Boolean(activeDeal)}
+          collectionName={collection?.name}
         />
       </div>
     </div>

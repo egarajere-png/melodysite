@@ -68,7 +68,7 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a href="mailto:hello@aurumentonet.co.ke" className="transition-opacity hover:opacity-60">
+                <a href="mailto:hello@aurumentonet.co.ke" className="break-all transition-opacity hover:opacity-60">
                   hello@aurumentonet.co.ke
                 </a>
               </li>

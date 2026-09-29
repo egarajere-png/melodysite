@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { RevealText } from "@/components/motion/RevealText";
 import { ProductCard } from "@/components/product/ProductCard";
-import { GoogleAuthButton } from "@/components/account/GoogleAuthButton";
+import { AuthOptions } from "@/components/account/AuthOptions";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { getWishlistProducts } from "@/lib/supabase/wishlist";
@@ -20,7 +20,7 @@ export default async function WishlistPage() {
         {!user ? (
           <div className="flex flex-col items-center gap-5 py-16 text-center">
             <p className="max-w-sm text-sm text-aurum-obsidian/60">Sign in to see the pieces you&apos;ve saved.</p>
-            <GoogleAuthButton />
+            <AuthOptions next="/wishlist" />
           </div>
         ) : products.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 text-center">

@@ -4,15 +4,8 @@
 
 export type Money = number; // stored as KES, integer or decimal shillings
 
-export type CategorySlug =
-  | "rings"
-  | "earrings"
-  | "bracelets"
-  | "anklets"
-  | "hair-jewellery"
-  | "piercings"
-  | "charms"
-  | "belly-rings";
+/** A category's URL slug. Categories are managed by staff in the admin, so this is any string. */
+export type CategorySlug = string;
 
 export interface Category {
   slug: CategorySlug;
@@ -27,12 +20,10 @@ export interface CollectionSummary {
 }
 
 export interface ImageRef {
-  /** Abstract image reference — resolved by <EditorialImage> to a placeholder, or a real photo when `url` is set. */
   id: string;
   alt: string;
   kind?: "product" | "worn" | "editorial";
-  tone?: "ivory" | "deep" | "plum" | "sand" | "obsidian" | "earth";
-  /** Public URL of a real uploaded photo. When present, <EditorialImage> renders this instead of the placeholder. */
+  /** Public URL of the photo (Supabase Storage or /images/...). Without one, <EditorialImage> shows a neutral "image coming soon" surface. */
   url?: string;
 }
 
@@ -58,8 +49,12 @@ export interface Product {
   careInstructions: string;
   shippingInfo: string;
   returnsInfo: string;
+  /** Main image first, then any other colour-independent images. */
   images: ImageRef[];
+  /** Shown on hover (product card) and as an extra view on the product page. */
   wornImage?: ImageRef;
+  /** Per-colour galleries, keyed by the Colour option value (e.g. "Gold Vermeil"). */
+  colourImages: Record<string, ImageRef[]>;
   variants: ProductVariant[];
   isNew?: boolean;
   isBestseller?: boolean;
