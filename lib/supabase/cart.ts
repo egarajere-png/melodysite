@@ -181,3 +181,66 @@ export async function clearCart(customerId: string): Promise<void> {
   if (!cart) return;
   await supabase.from("cart_items").delete().eq("cart_id", cart.id);
 }
+
+export interface GuestCartItem {
+  variantId: string;
+  quantity: number;
+}
+
+const MAX_GUEST_LINES = 50;
+
+/**
+ * A guest's bag lives in their browser as bare {variantId, quantity} pairs. This turns
+ * those into real lines using the same live price/stock logic as signed-in carts —
+ * nothing about price or availability is taken from the browser. Unknown, inactive or
+ * sold-out variants are dropped and quantities are clamped to what's in stock.
+ */
+export async function getLinesForItems(items: GuestCartItem[]): Promise<CartLine[]> {
+  const wanted = new Map<string, number>();
+  for (const item of items.slice(0, MAX_GUEST_LINES)) {
+    if (typeof item?.variantId !== "string" || !/^[0-9a-f-]{36}$/i.test(item.variantId)) continue;
+    const qty = Math.floor(Number(item.quantity));
+    if (!(qty > 0)) continue;
+    wanted.set(item.variantId, (wanted.get(item.variantId) ?? 0) + qty);
+  }
+  if (wanted.size === 0) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("product_variants").select(VARIANT_SELECT).eq("is_active", true).in("id", [...wanted.keys()]);
+  if (error) throw error;
+
+  const lines = await Promise.all(
+    ((data ?? []) as unknown as RawVariantRow[]).map((variant) => {
+      const stock = availableStock(variant);
+      if (stock <= 0) return null;
+      return toCartLine(variant, Math.min(stock, wanted.get(variant.id) ?? 1));
+    })
+  );
+  // Keep the order the guest added things in.
+  const order = [...wanted.keys()];
+  return lines.filter((l): l is CartLine => l !== null).sort((a, b) => order.indexOf(a.variantId) - order.indexOf(b.variantId));
+}
+
+/**
+ * Moves a guest's browser bag into an account bag. Repeat-safe: an item already in
+ * the account bag keeps the larger of the two quantities rather than adding them, so
+ * a merge that runs twice (e.g. a request cut off by a page reload) can't double up.
+ */
+export async function mergeGuestItems(customerId: string, items: GuestCartItem[]): Promise<CartLine[]> {
+  const guestLines = await getLinesForItems(items);
+  if (guestLines.length) {
+    const cartId = await getOrCreateCartId(customerId);
+    const supabase = await createClient();
+    const { data: existing } = await supabase.from("cart_items").select("variant_id, quantity").eq("cart_id", cartId);
+    const current = new Map((existing ?? []).map((i) => [i.variant_id, i.quantity]));
+    for (const line of guestLines) {
+      const have = current.get(line.variantId);
+      if (have === undefined) {
+        await supabase.from("cart_items").insert({ cart_id: cartId, variant_id: line.variantId, quantity: line.quantity });
+      } else if (line.quantity > have) {
+        await supabase.from("cart_items").update({ quantity: Math.min(line.maxStock, line.quantity) }).eq("cart_id", cartId).eq("variant_id", line.variantId);
+      }
+    }
+  }
+  return getCartLines(customerId);
+}

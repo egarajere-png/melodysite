@@ -10,6 +10,7 @@ const inputClasses = "w-full border border-aurum-obsidian/20 bg-white px-4 py-3 
 const labelClasses = "mb-1.5 block text-xs uppercase tracking-widest text-aurum-obsidian/50";
 
 function friendlyError(message: string): string {
+  if (/banned/i.test(message)) return "This account has been suspended. Please contact us if you think this is a mistake.";
   if (/invalid login credentials/i.test(message)) return "Incorrect email or password.";
   if (/email not confirmed/i.test(message)) return "Please confirm your email first — check your inbox for the link we sent.";
   if (/already registered|already exists/i.test(message)) return "An account with this email already exists. Try signing in instead.";

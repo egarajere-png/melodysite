@@ -60,3 +60,14 @@ export async function clearCartAction(): Promise<CartActionResult> {
   await cart.clearCart(customerId);
   return { ok: true, lines: [] };
 }
+
+/** After a guest signs in, moves their browser bag into their account's bag. */
+export async function mergeGuestCartAction(items: cart.GuestCartItem[]): Promise<CartActionResult> {
+  const customerId = await requireCustomerId();
+  if (!customerId) return { ok: false, error: "Not signed in." };
+  try {
+    return { ok: true, lines: await cart.mergeGuestItems(customerId, Array.isArray(items) ? items : []) };
+  } catch {
+    return { ok: false, error: "Could not move your bag into your account." };
+  }
+}

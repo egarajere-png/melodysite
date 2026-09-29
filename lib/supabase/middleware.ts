@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
+import { isAdminOnlyPath } from "@/lib/staff-permissions";
 
 const STAFF_ROLES = new Set(["ADMIN", "ASSISTANT"]);
 
@@ -53,6 +54,10 @@ export async function updateSession(request: NextRequest) {
     const isStaff = Boolean(profile?.is_active) && STAFF_ROLES.has(profile?.role ?? "");
     if (!isStaff) {
       return NextResponse.redirect(new URL("/", request.url));
+    }
+    // Assistants are sent back to the dashboard from ADMIN-only sections.
+    if (profile?.role !== "ADMIN" && isAdminOnlyPath(request.nextUrl.pathname)) {
+      return NextResponse.redirect(new URL("/admin", request.url));
     }
   }
 

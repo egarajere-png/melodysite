@@ -16,6 +16,8 @@ export interface AdminOrderSummary {
   id: string;
   orderNumber: string;
   customerName: string;
+  /** Placed without an account (guest checkout). */
+  isGuest: boolean;
   status: OrderStatus;
   fulfilment: FulfilmentMethod;
   total: number;
@@ -25,6 +27,9 @@ export interface AdminOrderSummary {
 export interface AdminOrderDetail extends AdminOrderSummary {
   customerEmail: string | null;
   customerPhone: string | null;
+  /** Given at checkout for this order — preferred over the account email/phone. */
+  contactEmail: string | null;
+  contactPhone: string | null;
   subtotal: number;
   shippingTotal: number;
   shippingAddress: Record<string, string> | null;
@@ -37,13 +42,15 @@ export async function getAllOrdersForAdmin(): Promise<AdminOrderSummary[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("orders")
-    .select("id, order_number, status, fulfilment, total, created_at, profiles ( full_name )")
+    .select("id, order_number, status, fulfilment, total, created_at, customer_id, contact_name, profiles ( full_name )")
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map((o) => ({
     id: o.id,
     orderNumber: o.order_number,
-    customerName: (o.profiles as unknown as { full_name: string | null } | null)?.full_name ?? "—",
+    // The name typed at checkout is what staff should see; fall back to the account's.
+    customerName: o.contact_name || (o.profiles as unknown as { full_name: string | null } | null)?.full_name || "—",
+    isGuest: !o.customer_id,
     status: o.status,
     fulfilment: o.fulfilment,
     total: Number(o.total),
@@ -56,7 +63,7 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrderD
   const { data: order, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, status, fulfilment, subtotal, shipping_total, total, created_at, shipping_address, customer_id, profiles ( full_name, phone )"
+      "id, order_number, status, fulfilment, subtotal, shipping_total, total, created_at, shipping_address, contact_name, contact_email, contact_phone, customer_id, profiles ( full_name, phone )"
     )
     .eq("order_number", orderNumber)
     .maybeSingle();
@@ -70,12 +77,14 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrderD
   ]);
 
   let customerEmail: string | null = null;
-  try {
-    const admin = createAdminClient();
-    const { data: authUser } = await admin.auth.admin.getUserById(order.customer_id);
-    customerEmail = authUser?.user?.email ?? null;
-  } catch {
-    customerEmail = null;
+  if (order.customer_id) {
+    try {
+      const admin = createAdminClient();
+      const { data: authUser } = await admin.auth.admin.getUserById(order.customer_id);
+      customerEmail = authUser?.user?.email ?? null;
+    } catch {
+      customerEmail = null;
+    }
   }
 
   const profile = order.profiles as unknown as { full_name: string | null; phone: string | null } | null;
@@ -83,9 +92,12 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrderD
   return {
     id: order.id,
     orderNumber: order.order_number,
-    customerName: profile?.full_name ?? "—",
+    customerName: order.contact_name || profile?.full_name || "—",
+    isGuest: !order.customer_id,
     customerEmail,
     customerPhone: profile?.phone ?? null,
+    contactEmail: order.contact_email,
+    contactPhone: order.contact_phone,
     status: order.status,
     fulfilment: order.fulfilment,
     subtotal: Number(order.subtotal),

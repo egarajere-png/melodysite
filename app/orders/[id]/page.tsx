@@ -6,13 +6,16 @@ import { RevealText } from "@/components/motion/RevealText";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { formatKES, formatDate } from "@/lib/format";
+import { describeFulfilment } from "@/lib/delivery";
 
 export const metadata: Metadata = { title: "Order Status", robots: { index: false, follow: false } };
 
-export default async function OrderStatusPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const order = await getOrderByNumber(id.toUpperCase());
+export default async function OrderStatusPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ t?: string | string[] }> }) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const token = Array.isArray(sp.t) ? sp.t[0] : sp.t;
+  const order = await getOrderByNumber(id.toUpperCase(), token);
   if (!order) notFound();
+  const fulfilment = describeFulfilment(order.fulfilment, order.shippingAddress);
 
   return (
     <div className="pt-32 pb-24 sm:pt-40">
@@ -22,6 +25,19 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ id
           <RevealText as="h1" text="Your Order" className="mb-2 font-display text-4xl sm:text-5xl" />
           <p className="mb-10 text-sm text-aurum-obsidian/60">Placed {formatDate(order.createdAt)}</p>
           <OrderTimeline status={order.status} fulfilment={order.fulfilment} history={order.history} />
+
+          <div className="mt-10 border border-[var(--border-subtle)] p-6">
+            <p className="mb-2 text-xs uppercase tracking-widest text-aurum-obsidian/50">{order.fulfilment === "COLLECTION" ? "Pickup" : "Delivery"}</p>
+            <p className="font-display text-lg">{fulfilment.headline.replace(/^(Delivery|Pickup) · /, "")}</p>
+            <dl className="mt-3 flex flex-col gap-1.5 text-sm">
+              {fulfilment.details.map((d) => (
+                <div key={d.label} className="flex flex-wrap gap-x-2">
+                  <dt className="text-aurum-obsidian/50">{d.label}:</dt>
+                  <dd>{d.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
 
           {order.personalizedMessage && (
             <div className="mt-10 border border-[var(--border-subtle)] p-6">
@@ -56,7 +72,7 @@ export default async function OrderStatusPage({ params }: { params: Promise<{ id
               <span>{formatKES(order.subtotal)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-aurum-obsidian/60">Shipping</span>
+              <span className="text-aurum-obsidian/60">{order.fulfilment === "COLLECTION" ? "Pickup" : "Delivery"}</span>
               <span>{order.shippingTotal > 0 ? formatKES(order.shippingTotal) : "Free"}</span>
             </div>
             <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-2 font-display text-lg">

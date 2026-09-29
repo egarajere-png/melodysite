@@ -47,3 +47,15 @@ export async function toggleWishlist(customerId: string, productId: string): Pro
   }
   return getWishlistProductIds(customerId);
 }
+
+/** Adds several products at once (used when a guest's browser wishlist is moved into
+ * their account after signing in). Already-saved products are left as they are. */
+export async function addWishlistItems(customerId: string, productIds: string[]): Promise<string[]> {
+  const ids = [...new Set(productIds.filter((id) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id)))].slice(0, 200);
+  if (ids.length) {
+    const wishlistId = await getOrCreateWishlistId(customerId);
+    const supabase = await createClient();
+    await supabase.from("wishlist_items").upsert(ids.map((product_id) => ({ wishlist_id: wishlistId, product_id })), { onConflict: "wishlist_id,product_id", ignoreDuplicates: true });
+  }
+  return getWishlistProductIds(customerId);
+}

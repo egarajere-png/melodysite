@@ -24,7 +24,7 @@ export default function ContactPage() {
           <div className="mt-12 flex flex-col gap-8 text-sm">
             <div>
               <p className="mb-1 text-xs uppercase tracking-widest text-aurum-obsidian/50">Studio</p>
-              <p>Kilimani, Nairobi, Kenya</p>
+              <p>Kahawa Sukari, Nairobi, Kenya</p>
             </div>
             <div>
               <p className="mb-1 text-xs uppercase tracking-widest text-aurum-obsidian/50">Email</p>

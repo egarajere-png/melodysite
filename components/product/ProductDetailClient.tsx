@@ -17,7 +17,7 @@ function matchVariant(product: Product, colour: string | undefined, size: string
 }
 
 export function ProductDetailClient({ product }: { product: Product }) {
-  const { addLine, openCart } = useCart();
+  const { addLine, openCart, isAuthenticated } = useCart();
   const { isWishlisted, toggle } = useWishlist();
   const wishlisted = isWishlisted(product.id);
   const router = useRouter();
@@ -95,6 +95,8 @@ export function ProductDetailClient({ product }: { product: Product }) {
       },
       quantity
     );
+    // Signed-out visitors get the sign-in panel instead; nothing was added.
+    if (!isAuthenticated) return;
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 1600);
   }
@@ -102,6 +104,7 @@ export function ProductDetailClient({ product }: { product: Product }) {
   function handleBuyNow() {
     if (!currentVariant || !inStock) return;
     handleAddToBag();
+    if (!isAuthenticated) return;
     openCart();
     router.push("/checkout");
   }

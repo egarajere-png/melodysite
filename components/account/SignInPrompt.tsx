@@ -12,11 +12,17 @@ export function SignInPrompt({
   onClose,
   title = "Sign in to continue.",
   description = "Your account keeps this saved for next time.",
+  closeLabel = "Not now",
+  next,
 }: {
   open: boolean;
   onClose: () => void;
   title?: string;
   description?: string;
+  /** Text of the dismiss button, e.g. "Continue as guest". */
+  closeLabel?: string;
+  /** Where to return after signing in (defaults to the current page). */
+  next?: string;
 }) {
   return (
     <AnimatePresence>
@@ -43,13 +49,13 @@ export function SignInPrompt({
             <p className="font-display text-xl">{title}</p>
             <p className="mt-3 text-sm text-aurum-obsidian/60">{description}</p>
             <div className="mt-6 flex justify-center">
-              <AuthOptions onNavigate={onClose} />
+              <AuthOptions onNavigate={onClose} next={next} />
             </div>
             <button
               onClick={onClose}
               className="mt-4 text-xs uppercase tracking-widest text-aurum-obsidian/50 transition-colors hover:text-aurum-obsidian"
             >
-              Not now
+              {closeLabel}
             </button>
           </motion.div>
         </>

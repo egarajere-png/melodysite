@@ -11,7 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
 
 export function ProductCard({ product, className = "" }: { product: Product; className?: string }) {
-  const { addLine } = useCart();
+  const { addLine, isAuthenticated } = useCart();
   const { isWishlisted, toggle } = useWishlist();
   const [justAdded, setJustAdded] = useState(false);
   const wishlisted = isWishlisted(product.id);
@@ -35,6 +35,7 @@ export function ProductCard({ product, className = "" }: { product: Product; cla
       },
       1
     );
+    if (!isAuthenticated) return; // the bag drawer is showing the sign-in panel instead
     setJustAdded(true);
     window.setTimeout(() => setJustAdded(false), 1600);
   }

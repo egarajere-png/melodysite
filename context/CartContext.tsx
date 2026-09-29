@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useTransition, type ReactNode } from "react";
 import type { ImageRef } from "@/lib/types";
-import { addToCartAction, updateCartQuantityAction, removeCartItemAction, clearCartAction } from "@/app/actions/cart";
+import { addToCartAction, updateCartQuantityAction, removeCartItemAction, clearCartAction, mergeGuestCartAction, type CartActionResult } from "@/app/actions/cart";
+import { guestCart } from "@/lib/guest-storage";
 
 export interface CartLine {
   productId: string;
@@ -39,12 +40,13 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null);
 
 /**
- * The cart is Supabase-backed and requires an authenticated customer (the schema's
- * `carts.customer_id` is not-null — there's no guest-cart concept). Mutations call
- * server actions that re-derive price and available stock themselves; whatever this
- * component passes in for those fields is only used for the instant local "Added"
- * flash, never trusted as the source of truth — `lines` is always replaced by
- * whatever the server actually persisted right after.
+ * The bag is saved to the customer's account (carts/cart_items), so adding to it
+ * requires signing in — a signed-out visitor gets the sign-in panel in the drawer.
+ * Mutations call server actions that re-derive price and stock themselves; `lines` is
+ * always replaced by what the server actually persisted.
+ *
+ * Bags built as a guest (browser storage, from when guest shopping was allowed) are
+ * moved into the account once, on first sign-in — repeat-safe on the server.
  */
 export function CartProvider({
   children,
@@ -62,6 +64,29 @@ export function CartProvider({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const stored = guestCart.read();
+    if (stored.length === 0) return;
+    // Clear first: if this request is cut off by a navigation the server may still
+    // have merged, and the merge is repeat-safe anyway. Restore only on a clear failure.
+    guestCart.clear();
+    startTransition(async () => {
+      const result = await mergeGuestCartAction(stored);
+      if (result.ok) setLines(result.lines);
+      else guestCart.write(stored);
+    });
+  }, [isAuthenticated]);
+
+  function applyResult(result: CartActionResult) {
+    if (result.ok) {
+      setLines(result.lines);
+    } else {
+      setError(result.error);
+      if (result.signInRequired) setSignInRequired(true);
+    }
+  }
+
   function addLine(line: Omit<CartLine, "quantity">, quantity = 1) {
     if (!isAuthenticated) {
       setSignInRequired(true);
@@ -72,39 +97,22 @@ export function CartProvider({
     setSignInRequired(false);
     setLastAdded({ ...line, quantity });
     setIsOpen(true);
-    startTransition(async () => {
-      const result = await addToCartAction(line.variantId, quantity);
-      if (result.ok) setLines(result.lines);
-      else {
-        setError(result.error);
-        if (result.signInRequired) setSignInRequired(true);
-      }
-    });
+    startTransition(async () => applyResult(await addToCartAction(line.variantId, quantity)));
   }
 
   function updateQuantity(variantId: string, quantity: number) {
     setError(null);
-    startTransition(async () => {
-      const result = await updateCartQuantityAction(variantId, quantity);
-      if (result.ok) setLines(result.lines);
-      else setError(result.error);
-    });
+    startTransition(async () => applyResult(await updateCartQuantityAction(variantId, quantity)));
   }
 
   function removeLine(variantId: string) {
     setError(null);
-    startTransition(async () => {
-      const result = await removeCartItemAction(variantId);
-      if (result.ok) setLines(result.lines);
-      else setError(result.error);
-    });
+    startTransition(async () => applyResult(await removeCartItemAction(variantId)));
   }
 
   function clearCart() {
-    startTransition(async () => {
-      await clearCartAction();
-      setLines([]);
-    });
+    setLines([]);
+    if (isAuthenticated) startTransition(async () => void (await clearCartAction()));
   }
 
   const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);

@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
-import { toggleWishlistAction } from "@/app/actions/wishlist";
+import { createContext, useContext, useEffect, useState, useTransition, type ReactNode } from "react";
+import { mergeGuestWishlistAction, toggleWishlistAction } from "@/app/actions/wishlist";
+import { guestWishlist } from "@/lib/guest-storage";
 
 interface WishlistContextValue {
   productIds: Set<string>;
@@ -15,6 +16,7 @@ interface WishlistContextValue {
 
 const WishlistContext = createContext<WishlistContextValue | null>(null);
 
+/** Saved to the customer's account — signed-out visitors get the sign-in prompt. */
 export function WishlistProvider({
   children,
   isAuthenticated,
@@ -27,6 +29,19 @@ export function WishlistProvider({
   const [productIds, setProductIds] = useState(new Set(initialProductIds));
   const [signInRequired, setSignInRequired] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  // Move any wishlist saved as a guest (earlier browser-only wishlists) into the account.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const stored = guestWishlist.read();
+    if (stored.length === 0) return;
+    guestWishlist.clear();
+    startTransition(async () => {
+      const result = await mergeGuestWishlistAction(stored);
+      if (result.ok) setProductIds(new Set(result.productIds));
+      else guestWishlist.write(stored);
+    });
+  }, [isAuthenticated]);
 
   function toggle(productId: string) {
     if (!isAuthenticated) {

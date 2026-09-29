@@ -22,7 +22,7 @@ function AdminLoginForm() {
       const supabase = createClient();
       const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError || !data.user) {
-        setError("Incorrect email or password.");
+        setError(/banned/i.test(signInError?.message ?? "") ? "This account has been suspended." : "Incorrect email or password.");
         setSubmitting(false);
         return;
       }

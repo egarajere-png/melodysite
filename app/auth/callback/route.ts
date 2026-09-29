@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
   // Google (or Supabase) reports its own failures back as query params.
   const providerError = url.searchParams.get("error_description") ?? url.searchParams.get("error");
-  if (providerError) return fail(providerError.replace(/\+/g, " "));
+  if (providerError) return fail(/banned/i.test(providerError) ? "This account has been suspended. Please contact us if you think this is a mistake." : providerError.replace(/\+/g, " "));
   if (!isSupabaseConfigured()) return fail("Sign-in isn't configured yet.");
 
   const supabase = await createClient();

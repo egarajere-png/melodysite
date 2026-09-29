@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { storedImageRef } from "@/lib/product-media";
 import type { OrderStatus, FulfilmentMethod } from "@/lib/supabase/database.types";
 import type { ImageRef } from "@/lib/types";
@@ -67,14 +68,27 @@ export async function getCustomerOrders(customerId: string): Promise<OrderSummar
 
 /** Looks up an order by its human-facing order number (e.g. "AE-9016FBAB"), scoped
  * to RLS — a customer can only ever find their own orders this way, staff can find any. */
-export async function getOrderByNumber(orderNumber: string): Promise<OrderDetail | null> {
-  const supabase = await createClient();
-  const { data: order, error } = await supabase
-    .from("orders")
-    .select("id, order_number, status, fulfilment, subtotal, shipping_total, total, created_at, shipping_address")
-    .eq("order_number", orderNumber)
-    .maybeSingle();
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ORDER_DETAIL_SELECT = "id, order_number, status, fulfilment, subtotal, shipping_total, total, created_at, shipping_address";
+
+/**
+ * Guests have no session for RLS to match, so their order is opened with its
+ * access_token (a random UUID in their order link). Both the order number and the
+ * token must match, and the lookup runs server-side with the service-role client.
+ */
+export async function getOrderByNumber(orderNumber: string, accessToken?: string): Promise<OrderDetail | null> {
+  const rls = await createClient();
+  const { data: own, error } = await rls.from("orders").select(ORDER_DETAIL_SELECT).eq("order_number", orderNumber).maybeSingle();
   if (error) throw error;
+
+  let order = own;
+  let supabase: ReturnType<typeof createAdminClient> | Awaited<ReturnType<typeof createClient>> = rls;
+  if (!order && accessToken && UUID.test(accessToken)) {
+    const admin = createAdminClient();
+    const { data: viaToken } = await admin.from("orders").select(ORDER_DETAIL_SELECT).eq("order_number", orderNumber).eq("access_token", accessToken).maybeSingle();
+    order = viaToken;
+    supabase = admin;
+  }
   if (!order) return null;
 
   const [{ data: items }, { data: history }, { data: message }] = await Promise.all([
@@ -105,4 +119,17 @@ export async function getOrderByNumber(orderNumber: string): Promise<OrderDetail
     history: (history ?? []).map((h) => ({ status: h.status, timestamp: h.created_at, note: h.note })),
     personalizedMessage: message ? { recipientName: message.recipient_name, message: message.message } : null,
   };
+}
+
+/** "Track your order" for guests: order number + the email used at checkout. Returns
+ * the order's access token only when both match, so order numbers alone reveal nothing. */
+export async function findGuestOrderToken(orderNumber: string, email: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("orders")
+    .select("access_token, contact_email")
+    .eq("order_number", orderNumber.trim().toUpperCase())
+    .maybeSingle();
+  if (!data?.contact_email || data.contact_email.trim().toLowerCase() !== email.trim().toLowerCase()) return null;
+  return data.access_token;
 }

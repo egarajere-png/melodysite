@@ -810,9 +810,13 @@ export type Database = {
       }
       orders: {
         Row: {
+          access_token: string
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
           created_at: string
           currency: string
-          customer_id: string
+          customer_id: string | null
           discount_total: number
           fulfilment: Database["public"]["Enums"]["fulfilment_method"]
           id: string
@@ -826,9 +830,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          access_token?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           currency?: string
-          customer_id: string
+          customer_id?: string | null
           discount_total?: number
           fulfilment: Database["public"]["Enums"]["fulfilment_method"]
           id?: string
@@ -842,9 +850,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          access_token?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
           created_at?: string
           currency?: string
-          customer_id?: string
+          customer_id?: string | null
           discount_total?: number
           fulfilment?: Database["public"]["Enums"]["fulfilment_method"]
           id?: string
@@ -1353,9 +1365,44 @@ export type Database = {
           },
         ]
       }
+      pickup_locations: {
+        Row: {
+          address: string
+          created_at: string
+          directions: string | null
+          hours: string | null
+          id: string
+          is_active: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          directions?: string | null
+          hours?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          directions?: string | null
+          hours?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       shipping_rates: {
         Row: {
           amount: number
+          created_at: string
+          delivery_estimate: string | null
           id: string
           is_active: boolean
           min_order_amount: number | null
@@ -1364,6 +1411,8 @@ export type Database = {
         }
         Insert: {
           amount: number
+          created_at?: string
+          delivery_estimate?: string | null
           id?: string
           is_active?: boolean
           min_order_amount?: number | null
@@ -1372,6 +1421,8 @@ export type Database = {
         }
         Update: {
           amount?: number
+          created_at?: string
+          delivery_estimate?: string | null
           id?: string
           is_active?: boolean
           min_order_amount?: number | null
@@ -1391,24 +1442,33 @@ export type Database = {
       shipping_zones: {
         Row: {
           country_codes: string[]
+          created_at: string
+          description: string | null
           id: string
           is_active: boolean
           is_international: boolean
           name: string
+          sort_order: number
         }
         Insert: {
           country_codes?: string[]
+          created_at?: string
+          description?: string | null
           id?: string
           is_active?: boolean
           is_international?: boolean
           name: string
+          sort_order?: number
         }
         Update: {
           country_codes?: string[]
+          created_at?: string
+          description?: string | null
           id?: string
           is_active?: boolean
           is_international?: boolean
           name?: string
+          sort_order?: number
         }
         Relationships: []
       }

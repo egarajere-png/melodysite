@@ -8,6 +8,7 @@ import { updateOrderStatusAction } from "@/app/actions/admin-orders";
 import type { OrderStatus } from "@/lib/supabase/database.types";
 import type { AdminOrderDetail as AdminOrderDetailType } from "@/lib/supabase/orders-admin";
 import { useToast } from "@/components/admin/Toast";
+import { describeFulfilment } from "@/lib/delivery";
 
 const ALL_STATUSES: OrderStatus[] = [
   "PAYMENT_PENDING",
@@ -24,6 +25,7 @@ const ALL_STATUSES: OrderStatus[] = [
 
 export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
   const toast = useToast();
+  const fulfilment = describeFulfilment(order.fulfilment, order.shippingAddress);
   const [status, setStatus] = useState<OrderStatus>(order.status);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -102,19 +104,56 @@ export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
       <div className="flex flex-col gap-6">
         <div className="border border-aurum-obsidian/10 bg-white p-6">
           <h2 className="mb-3 font-display text-lg">Customer</h2>
-          <p className="text-sm">{order.customerName}</p>
-          <p className="text-sm text-aurum-obsidian/60">{order.customerEmail ?? "No email on file"}</p>
-          {order.customerPhone && <p className="text-sm text-aurum-obsidian/60">{order.customerPhone}</p>}
+          <p className="text-sm">
+            {order.customerName}
+            {order.isGuest && <span className="ml-2 bg-aurum-obsidian/10 px-2 py-0.5 align-middle text-[10px] uppercase tracking-widest text-aurum-obsidian/60">Guest</span>}
+          </p>
+          {(order.contactEmail ?? order.customerEmail) && (
+            <a href={`mailto:${order.contactEmail ?? order.customerEmail}`} className="block text-sm text-aurum-obsidian/70 underline-offset-4 hover:underline">
+              {order.contactEmail ?? order.customerEmail}
+            </a>
+          )}
+          {(order.contactPhone ?? order.customerPhone) && (
+            <a href={`tel:${order.contactPhone ?? order.customerPhone}`} className="block text-sm text-aurum-obsidian/70 underline-offset-4 hover:underline">
+              {order.contactPhone ?? order.customerPhone}
+            </a>
+          )}
+          {!order.contactEmail && !order.customerEmail && <p className="text-sm text-aurum-obsidian/50">No email on file</p>}
         </div>
 
-        <div className="border border-aurum-obsidian/10 bg-white p-6">
-          <h2 className="mb-3 font-display text-lg">Fulfilment</h2>
-          <p className="text-sm capitalize">{order.fulfilment.toLowerCase()}</p>
-          {order.shippingAddress && (
-            <p className="mt-1 text-sm text-aurum-obsidian/60">
-              {order.shippingAddress.recipient_name}, {order.shippingAddress.address_line_1}, {order.shippingAddress.city}
-            </p>
+        <div className="border-2 border-aurum-obsidian bg-white p-6">
+          <p className="text-[11px] uppercase tracking-widest text-aurum-obsidian/50">{order.fulfilment === "COLLECTION" ? "Pickup" : "Deliver to"}</p>
+          <h2 className="mt-1 font-display text-xl">{fulfilment.headline.replace(/^(Delivery|Pickup) · /, "")}</h2>
+          <dl className="mt-4 flex flex-col gap-2.5 text-sm">
+            {fulfilment.details.map((d) => (
+              <div key={d.label} className="grid grid-cols-[8.5rem_1fr] gap-3">
+                <dt className="text-aurum-obsidian/50">{d.label}</dt>
+                <dd className={d.label === "Exact location" ? "font-medium" : ""}>
+                  {/phone/i.test(d.label) ? (
+                    <a href={`tel:${d.value}`} className="underline-offset-4 hover:underline">
+                      {d.value}
+                    </a>
+                  ) : (
+                    d.value
+                  )}
+                </dd>
+              </div>
+            ))}
+            {fulfilment.details.length === 0 && <p className="text-aurum-obsidian/50">No delivery details were recorded for this order.</p>}
+          </dl>
+          {fulfilment.mapsUrl && (
+            <a
+              href={fulfilment.mapsUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex items-center gap-1.5 border border-aurum-obsidian/15 px-3 py-1.5 text-xs uppercase tracking-widest transition-colors hover:border-aurum-obsidian"
+            >
+              Open in Google Maps
+            </a>
           )}
+          <p className="mt-4 border-t border-aurum-obsidian/10 pt-3 text-xs text-aurum-obsidian/50">
+            {order.fulfilment === "COLLECTION" ? "No delivery fee." : `Delivery fee paid: ${formatKES(order.shippingTotal)}`}
+          </p>
         </div>
 
         <div className="border border-aurum-obsidian/10 bg-white p-6">

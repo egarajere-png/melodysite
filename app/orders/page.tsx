@@ -42,8 +42,8 @@ export default async function OrderLookupPage() {
 
         <p className="mb-8 text-sm text-aurum-obsidian/60">
           {orders.length > 0
-            ? "Or enter any order reference to look it up directly."
-            : "Enter your order reference to see its current status. You'll find this in your order confirmation."}
+            ? "Or look up an order with its number and the email used at checkout."
+            : "Enter your order number and the email you used at checkout. You'll find the number in your order confirmation."}
         </p>
         <OrderLookupForm />
       </div>

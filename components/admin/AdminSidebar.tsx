@@ -17,30 +17,34 @@ import {
   FileText,
   LogOut,
   FolderTree,
+  Truck,
+  type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { StaffSession } from "@/lib/supabase/staff-auth";
+import { ADMIN_SECTIONS } from "@/lib/staff-permissions";
 
-const NAV = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
-  { href: "/admin/categories", label: "Categories", icon: FolderTree },
-  { href: "/admin/collections", label: "Collections", icon: Layers },
-  { href: "/admin/deals", label: "Deals", icon: Tag },
-  { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/admin/customers", label: "Customers", icon: Users, adminOnly: true },
-  { href: "/admin/inquiries", label: "Inquiries", icon: Mail },
-  { href: "/admin/expenses", label: "Expenses", icon: Receipt, adminOnly: true },
-  { href: "/admin/content", label: "Content", icon: FileText, adminOnly: true },
-  { href: "/admin/audit-logs", label: "Audit Log", icon: History, adminOnly: true },
-];
+const ICONS: Record<string, LucideIcon> = {
+  "/admin": LayoutDashboard,
+  "/admin/products": Package,
+  "/admin/orders": ShoppingBag,
+  "/admin/delivery": Truck,
+  "/admin/categories": FolderTree,
+  "/admin/collections": Layers,
+  "/admin/deals": Tag,
+  "/admin/analytics": BarChart3,
+  "/admin/customers": Users,
+  "/admin/inquiries": Mail,
+  "/admin/expenses": Receipt,
+  "/admin/content": FileText,
+  "/admin/audit-logs": History,
+};
 
 export function AdminSidebar({ staff }: { staff: StaffSession }) {
   const pathname = usePathname();
   // RLS already refuses ADMIN-only data to assistants, so those pages would only
   // ever render empty for them — hide the links rather than offer dead ends.
-  const nav = NAV.filter((item) => !item.adminOnly || staff.role === "ADMIN");
+  const nav = ADMIN_SECTIONS.filter((item) => !item.adminOnly || staff.role === "ADMIN");
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -61,7 +65,7 @@ export function AdminSidebar({ staff }: { staff: StaffSession }) {
         <nav className="flex flex-col gap-0.5 p-3">
           {nav.map((item) => {
             const active = item.href === "/admin" ? pathname === "/admin" : pathname?.startsWith(item.href);
-            const Icon = item.icon;
+            const Icon = ICONS[item.href] ?? LayoutDashboard;
             return (
               <Link
                 key={item.href}

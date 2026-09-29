@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { toggleWishlist, getWishlistProductIds } from "@/lib/supabase/wishlist";
+import { toggleWishlist, getWishlistProductIds, addWishlistItems } from "@/lib/supabase/wishlist";
 
 export type WishlistActionResult = { ok: true; productIds: string[] } | { ok: false; error: string; signInRequired?: boolean };
 
@@ -30,5 +30,15 @@ export async function toggleWishlistAction(productId: string): Promise<WishlistA
     return { ok: true, productIds: await toggleWishlist(customerId, productId) };
   } catch {
     return { ok: false, error: "Could not update your wishlist." };
+  }
+}
+
+export async function mergeGuestWishlistAction(productIds: string[]): Promise<WishlistActionResult> {
+  const customerId = await requireCustomerId();
+  if (!customerId) return { ok: false, error: "Not signed in." };
+  try {
+    return { ok: true, productIds: await addWishlistItems(customerId, Array.isArray(productIds) ? productIds : []) };
+  } catch {
+    return { ok: false, error: "Could not move your wishlist into your account." };
   }
 }

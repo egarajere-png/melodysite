@@ -87,7 +87,10 @@ export function AdminOrdersTable({ orders }: { orders: AdminOrderSummary[] }) {
                       {o.orderNumber}
                     </Link>
                   </td>
-                  <td className="px-4 py-3">{o.customerName}</td>
+                  <td className="px-4 py-3">
+                    {o.customerName}
+                    {o.isGuest && <span className="ml-2 bg-aurum-obsidian/10 px-1.5 py-0.5 text-[10px] uppercase tracking-widest text-aurum-obsidian/60">Guest</span>}
+                  </td>
                   <td className="px-4 py-3 text-aurum-obsidian/60">{formatDate(o.createdAt)}</td>
                   <td className="px-4 py-3 capitalize text-aurum-obsidian/60">{o.fulfilment.toLowerCase()}</td>
                   <td className="px-4 py-3">{formatKES(o.total)}</td>
