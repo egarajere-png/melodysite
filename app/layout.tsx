@@ -7,6 +7,7 @@ import { getCartLines } from "@/lib/supabase/cart";
 import { getWishlistProductIds } from "@/lib/supabase/wishlist";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { preloaderSkipScript } from "@/lib/preloader";
 
 const siteUrl = "https://aurumentonet.co.ke";
 
@@ -63,7 +64,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   }
 
   return (
-    <html lang="en" className={`${fraunces.variable} ${archivo.variable}`}>
+    // suppressHydrationWarning: the head script below may add data-ae-skip before hydration.
+    <html lang="en" className={`${fraunces.variable} ${archivo.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: preloaderSkipScript }} />
+        <noscript>
+          <style>{".ae-preloader{display:none!important}html{overflow:auto!important}[data-intro-hold]{opacity:1!important}"}</style>
+        </noscript>
+      </head>
       <body className="bg-aurum-ivory text-aurum-obsidian antialiased">
         <a
           href="#main-content"

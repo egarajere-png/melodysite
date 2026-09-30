@@ -7,12 +7,14 @@ import { easeLuxury, viewportOnce } from "@/lib/motion";
 export function FadeIn({
   children,
   delay = 0,
+  duration = 0.7,
   y = 24,
   className,
   as = "div",
 }: {
   children: ReactNode;
   delay?: number;
+  duration?: number;
   y?: number;
   className?: string;
   as?: "div" | "span";
@@ -26,7 +28,7 @@ export function FadeIn({
       initial={reduce ? undefined : { opacity: 0, y }}
       whileInView={reduce ? undefined : { opacity: 1, y: 0 }}
       viewport={viewportOnce}
-      transition={{ duration: 0.7, delay, ease: easeLuxury }}
+      transition={{ duration, delay, ease: easeLuxury }}
     >
       {children}
     </Comp>

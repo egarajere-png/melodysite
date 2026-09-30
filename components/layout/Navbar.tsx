@@ -8,6 +8,7 @@ import { useCart } from "@/context/CartContext";
 import { MegaMenu } from "@/components/layout/MegaMenu";
 import { UserMenu, type NavAccount } from "@/components/layout/UserMenu";
 import type { Category } from "@/lib/types";
+import { usePreloaderReady } from "@/lib/usePreloaderReady";
 
 const NAV_LINKS = [
   { href: "/about", label: "About" },
@@ -51,9 +52,20 @@ export function Navbar({ onOpenMenu, categories, account }: { onOpenMenu: () => 
   }
 
   const transparent = isHome && !scrolled && !shopOpen;
+  // Held back (via data-intro-hold in preloader.css) while the invitation is up, then
+  // fades in last — after the Hero's one-by-one entrance on the homepage.
+  const { fromIntro } = usePreloaderReady();
+  const introStyle = fromIntro
+    ? {
+        opacity: 1,
+        transition: `opacity 1.2s var(--ease-luxury) ${isHome ? 2.9 : 0.3}s, background-color 500ms, border-color 500ms`,
+      }
+    : undefined;
 
   return (
     <header
+      data-intro-hold
+      style={introStyle}
       className={`fixed inset-x-0 top-0 z-[var(--z-nav)] transition-colors duration-500 ${
         transparent ? "bg-transparent" : "border-b border-[var(--border-subtle)] bg-aurum-ivory/95 backdrop-blur-sm"
       }`}

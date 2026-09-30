@@ -1,4 +1,4 @@
-/** Branded route-transition fallback. Deliberately small and quiet — the cinematic
+/** Branded route-transition fallback. Deliberately small and quiet — the invitation
  * Preloader owns the first-visit moment; this only covers brief server-render gaps
  * on subsequent navigation and must never compete with it. */
 export default function Loading() {

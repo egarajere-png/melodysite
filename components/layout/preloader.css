@@ -1,0 +1,205 @@
+/* Aurum Entonet entrance invitation — ivory stationery, a burgundy-and-gold seal, and a
+   deep-plum reveal. Scoped under .ae-* so it never touches the rest of the site. */
+
+.ae-preloader {
+  --ae-fold-y: 24%;
+  --ae-tip-y: 56%;
+  --ae-paper: #fffdf8;
+  --ae-paper-warm: var(--surface-muted);
+  --ae-paper-shadow: rgba(36, 19, 56, 0.24);
+  --ae-ink: var(--aurum-obsidian);
+  --ae-progress: var(--aurum-gold);
+  --ae-progress-track: rgba(198, 161, 91, 0.22);
+
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-preloader);
+  display: block;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  /* Hidden behind the envelope until it parts — then it's the stage for the wordmark. */
+  background: var(--aurum-deep);
+  color: var(--ae-ink);
+  cursor: default;
+  text-align: center;
+  appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Hidden before paint for returning visitors (see preloaderSkipScript), and the page
+   underneath can't scroll while the invitation is up. */
+html[data-ae-skip] .ae-preloader { display: none; }
+html:not([data-ae-skip]):has(.ae-preloader) { overflow: hidden; }
+/* Chrome that waits for the invitation, then fades in on its own cue (see Navbar). */
+html:not([data-ae-skip]) [data-intro-hold] { opacity: 0; }
+
+.ae-preloader[data-phase="ready"] { cursor: pointer; }
+.ae-preloader:focus-visible { outline: 1px solid var(--aurum-gold); outline-offset: -8px; }
+
+.ae-envelope { position: absolute; inset: 0; display: block; }
+
+.ae-bottom-panel {
+  position: absolute;
+  /* 1px overlap so no plum hairline shows along the fold. */
+  inset: calc(var(--ae-fold-y) - 1px) 0 0;
+  display: block;
+  background: linear-gradient(180deg, var(--ae-paper-warm), var(--ae-paper) 90%);
+  box-shadow: inset 0 8px 18px -12px var(--ae-paper-shadow);
+  will-change: transform;
+}
+
+.ae-top-panel {
+  position: absolute;
+  inset: 0;
+  display: block;
+  filter: drop-shadow(0 8px 10px var(--ae-paper-shadow));
+  will-change: transform;
+}
+.ae-top-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(175deg, var(--ae-paper) 40%, #fbf6ee);
+  clip-path: polygon(0 0, 100% 0, 100% var(--ae-fold-y), 50% var(--ae-tip-y), 0 var(--ae-fold-y));
+}
+
+.ae-seal-wrap {
+  position: absolute;
+  display: block;
+  width: clamp(96px, 10vw, 122px);
+  height: clamp(96px, 10vw, 122px);
+  left: 50%;
+  top: var(--ae-tip-y);
+  transform: translate(-50%, -50%);
+  animation: ae-seal-in 1s var(--ease-luxury) 0.15s both;
+}
+.ae-seal {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 5px var(--ae-paper-shadow));
+  user-select: none;
+}
+
+.ae-progress {
+  position: absolute;
+  inset: -13px;
+  border: 1px solid var(--ae-progress-track);
+  border-radius: 50%;
+  opacity: 0.9;
+  animation: ae-progress-turn 3.5s linear infinite;
+}
+.ae-progress::after {
+  content: "";
+  position: absolute;
+  top: -2.5px;
+  left: 50%;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: var(--ae-progress);
+  box-shadow: 0 0 6px var(--ae-progress);
+}
+
+.ae-invitation-prompt {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(42px, 11dvh, 115px);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  opacity: 0;
+  pointer-events: none;
+}
+.ae-prompt-script {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-style: italic;
+  font-weight: 300;
+  font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 144;
+  font-size: clamp(30px, 3.4vw, 46px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  color: var(--aurum-obsidian);
+}
+.ae-prompt-rule {
+  display: block;
+  width: 44px;
+  height: 1px;
+  background: var(--aurum-gold);
+  transform-origin: center;
+}
+
+.ae-preloader[data-phase="ready"] .ae-progress { opacity: 0; animation: none; transition: opacity 450ms ease; }
+.ae-preloader[data-phase="ready"] .ae-invitation-prompt { animation: ae-prompt-in 850ms ease-out both; }
+.ae-preloader[data-phase="ready"] .ae-prompt-rule { animation: ae-rule-in 900ms var(--ease-luxury) 350ms both; }
+.ae-preloader[data-phase="ready"] .ae-seal-wrap { animation: ae-seal-breathe 3.2s ease-in-out infinite; }
+
+.ae-brand {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-size: clamp(56px, 8vw, 114px);
+  font-weight: 350;
+  font-variation-settings: "opsz" 144;
+  line-height: 0.84;
+  color: var(--aurum-ivory);
+  pointer-events: none;
+  opacity: 0;
+}
+.ae-brand-line { display: block; opacity: 0; }
+.ae-brand-second { font-size: 0.67em; font-style: italic; margin-top: 0.2em; color: var(--aurum-gold); }
+.ae-brand-tagline {
+  margin-top: 2.1rem;
+  font-family: var(--font-archivo), system-ui, sans-serif;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.4em;
+  line-height: 1;
+  text-transform: uppercase;
+  color: rgba(247, 241, 232, 0.55);
+}
+
+.ae-preloader[data-phase="opening"] { pointer-events: none; animation: ae-exit 550ms ease-in 2.55s forwards; }
+.ae-preloader[data-phase="opening"] .ae-invitation-prompt { opacity: 0; transition: opacity 200ms ease; }
+.ae-preloader[data-phase="opening"] .ae-progress { opacity: 0; animation: none; }
+/* Without this the base entrance animation would replay as the phase changes. */
+.ae-preloader[data-phase="opening"] .ae-seal-wrap { animation: none; }
+.ae-preloader[data-phase="opening"] .ae-top-panel { animation: ae-slide-up 1.5s cubic-bezier(0.7, 0, 0.2, 1) forwards; }
+.ae-preloader[data-phase="opening"] .ae-bottom-panel { animation: ae-slide-down 1.5s cubic-bezier(0.7, 0, 0.2, 1) forwards; }
+.ae-preloader[data-phase="opening"] .ae-brand { animation: ae-brand-show 0.1s linear 0.7s forwards; }
+.ae-preloader[data-phase="opening"] .ae-brand-first { animation: ae-title-in 0.65s ease-out 0.78s forwards; }
+.ae-preloader[data-phase="opening"] .ae-brand-second { animation: ae-title-in 0.65s ease-out 1.12s forwards; }
+.ae-preloader[data-phase="opening"] .ae-brand-tagline { animation: ae-title-in 0.65s ease-out 1.46s forwards; }
+
+@keyframes ae-seal-in { from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes ae-seal-breathe { 50% { transform: translate(-50%, -50%) scale(1.025); } }
+@keyframes ae-progress-turn { to { transform: rotate(360deg); } }
+@keyframes ae-prompt-in { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ae-rule-in { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes ae-slide-up { to { transform: translateY(-110dvh); } }
+@keyframes ae-slide-down { to { transform: translateY(110dvh); } }
+@keyframes ae-brand-show { to { opacity: 1; } }
+@keyframes ae-title-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ae-exit { to { opacity: 0; } }
+
+@media (max-width: 640px) {
+  .ae-preloader { --ae-fold-y: 41%; --ae-tip-y: 57%; }
+  .ae-seal-wrap { width: clamp(86px, 26vw, 112px); height: clamp(86px, 26vw, 112px); }
+  .ae-progress { inset: -10px; }
+  .ae-invitation-prompt { bottom: 16dvh; }
+  .ae-brand { font-size: clamp(57px, 17vw, 88px); }
+}
