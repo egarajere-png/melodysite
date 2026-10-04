@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { OrderStatus, FulfilmentMethod } from "@/lib/supabase/database.types";
+import type { OrderStatus, FulfilmentMethod, PaymentStatus } from "@/lib/supabase/database.types";
 import type { OrderItemView, OrderStatusEvent } from "@/lib/supabase/orders-customer";
 import { itemImageFromPath } from "@/lib/supabase/orders-customer";
 
@@ -36,6 +36,30 @@ export interface AdminOrderDetail extends AdminOrderSummary {
   items: OrderItemView[];
   history: OrderStatusEvent[];
   personalizedMessage: { recipientName: string; message: string } | null;
+  /** M-Pesa attempts for this order, newest first. */
+  payments: AdminOrderPayment[];
+  /** Emails and WhatsApp messages sent about this order, newest first. */
+  notifications: AdminOrderNotification[];
+}
+
+export interface AdminOrderNotification {
+  id: string;
+  channel: string;
+  eventType: string;
+  recipient: string;
+  status: string;
+  error: string | null;
+  createdAt: string;
+}
+
+export interface AdminOrderPayment {
+  id: string;
+  status: PaymentStatus;
+  amount: number;
+  phone: string | null;
+  receipt: string | null;
+  failureReason: string | null;
+  createdAt: string;
 }
 
 export async function getAllOrdersForAdmin(): Promise<AdminOrderSummary[]> {
@@ -70,10 +94,12 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrderD
   if (error) throw error;
   if (!order) return null;
 
-  const [{ data: items }, { data: history }, { data: message }] = await Promise.all([
+  const [{ data: items }, { data: history }, { data: message }, { data: payments }, { data: notifications }] = await Promise.all([
     supabase.from("order_items").select("id, product_name, variant_name, sku, quantity, unit_price, image_path").eq("order_id", order.id),
     supabase.from("order_status_history").select("status, note, created_at").eq("order_id", order.id).order("created_at"),
     supabase.from("order_personalized_messages").select("recipient_name, message").eq("order_id", order.id).maybeSingle(),
+    supabase.from("payments").select("id, status, amount, phone, receipt_number, failure_reason, created_at").eq("order_id", order.id).order("created_at", { ascending: false }),
+    supabase.from("email_messages").select("id, channel, event_type, recipient, status, error, created_at").eq("order_id", order.id).order("created_at", { ascending: false }).limit(40),
   ]);
 
   let customerEmail: string | null = null;
@@ -116,11 +142,61 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrderD
     })),
     history: (history ?? []).map((h) => ({ status: h.status, timestamp: h.created_at, note: h.note })),
     personalizedMessage: message ? { recipientName: message.recipient_name, message: message.message } : null,
+    payments: (payments ?? []).map((p) => ({
+      id: p.id,
+      status: p.status,
+      amount: Number(p.amount),
+      phone: p.phone,
+      receipt: p.receipt_number,
+      failureReason: p.failure_reason,
+      createdAt: p.created_at,
+    })),
+    notifications: (notifications ?? []).map((n) => ({
+      id: n.id,
+      channel: n.channel,
+      eventType: n.event_type,
+      recipient: n.recipient,
+      status: n.status,
+      error: n.error,
+      createdAt: n.created_at,
+    })),
   };
 }
 
-export async function updateOrderStatus(orderId: string, staffId: string, status: OrderStatus, note?: string): Promise<void> {
+/** A status change staff can't make right now; its message is safe to show them as-is. */
+export class OrderStatusError extends Error {}
+
+async function moveOrderStock(supabase: Awaited<ReturnType<typeof createClient>>, orderId: string, direction: "release" | "reserve"): Promise<void> {
+  const { data: items, error } = await supabase.from("order_items").select("variant_id, quantity, product_name").eq("order_id", orderId);
+  if (error) throw error;
+  const taken: { variant_id: string; quantity: number }[] = [];
+  for (const item of items ?? []) {
+    if (!item.variant_id) continue; // the variant was deleted since; nothing to adjust
+    if (direction === "release") {
+      const { error: releaseErr } = await supabase.rpc("release_variant_stock", { p_variant_id: item.variant_id, p_quantity: item.quantity });
+      if (releaseErr) throw releaseErr;
+      continue;
+    }
+    const { data: ok, error: reserveErr } = await supabase.rpc("reserve_variant_stock", { p_variant_id: item.variant_id, p_quantity: item.quantity });
+    if (reserveErr || !ok) {
+      for (const t of taken) await supabase.rpc("release_variant_stock", { p_variant_id: t.variant_id, p_quantity: t.quantity });
+      if (reserveErr) throw reserveErr;
+      throw new OrderStatusError(`"${item.product_name}" no longer has enough stock to reopen this order.`);
+    }
+    taken.push({ variant_id: item.variant_id, quantity: item.quantity });
+  }
+}
+
+/** Returns the status the order had before, so callers can tell a real change from a re-save. */
+export async function updateOrderStatus(orderId: string, staffId: string, status: OrderStatus, note?: string): Promise<OrderStatus | null> {
   const supabase = await createClient();
+  const { data: before } = await supabase.from("orders").select("status").eq("id", orderId).maybeSingle();
+
+  // A cancelled order gives its pieces back to the shop; un-cancelling takes them
+  // again, and is refused if they've since sold.
+  const wasCancelled = before?.status === "CANCELLED";
+  if (before && wasCancelled !== (status === "CANCELLED")) await moveOrderStock(supabase, orderId, status === "CANCELLED" ? "release" : "reserve");
+
   const { error: updateErr } = await supabase.from("orders").update({ status }).eq("id", orderId);
   if (updateErr) throw updateErr;
 
@@ -128,4 +204,5 @@ export async function updateOrderStatus(orderId: string, staffId: string, status
     .from("order_status_history")
     .insert({ order_id: orderId, status, note: note || null, actor_id: staffId });
   if (historyErr) throw historyErr;
+  return before?.status ?? null;
 }

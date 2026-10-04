@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { CheckoutError, createOrder, type CreateOrderInput, type CreatedOrder } from "@/lib/supabase/orders";
+import { queueOrderStatusNotification } from "@/lib/notifications/order-notifications";
 
 export type CreateOrderActionResult = { ok: true; order: CreatedOrder } | { ok: false; error: string; signInRequired?: boolean };
 
@@ -14,6 +15,7 @@ export async function createOrderAction(input: CreateOrderInput): Promise<Create
 
   try {
     const order = await createOrder(user.id, input);
+    queueOrderStatusNotification(order.id, "PAYMENT_PENDING");
     return { ok: true, order };
   } catch (error) {
     // Only our own validation messages are shown verbatim; database/internal errors

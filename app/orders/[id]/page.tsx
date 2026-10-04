@@ -7,6 +7,8 @@ import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { formatKES, formatDate } from "@/lib/format";
 import { describeFulfilment } from "@/lib/delivery";
+import { MpesaPayment } from "@/components/checkout/MpesaPayment";
+import { getMpesaPaymentView } from "@/lib/supabase/payments";
 
 export const metadata: Metadata = { title: "Order Status", robots: { index: false, follow: false } };
 
@@ -16,6 +18,8 @@ export default async function OrderStatusPage({ params, searchParams }: { params
   const order = await getOrderByNumber(id.toUpperCase(), token);
   if (!order) notFound();
   const fulfilment = describeFulfilment(order.fulfilment, order.shippingAddress);
+  // Unpaid orders can be paid from here, so closing the checkout tab never strands one.
+  const payment = order.status === "PAYMENT_PENDING" ? await getMpesaPaymentView(order.id).catch(() => null) : null;
 
   return (
     <div className="pt-32 pb-24 sm:pt-40">
@@ -24,6 +28,11 @@ export default async function OrderStatusPage({ params, searchParams }: { params
           <p className="mb-3 text-xs uppercase tracking-widest text-aurum-obsidian/50">Order {order.orderNumber}</p>
           <RevealText as="h1" text="Your Order" className="mb-2 font-display text-4xl sm:text-5xl" />
           <p className="mb-10 text-sm text-aurum-obsidian/60">Placed {formatDate(order.createdAt)}</p>
+          {payment && (
+            <div className="mb-10">
+              <MpesaPayment orderNumber={order.orderNumber} accessToken={token} total={order.total} defaultPhone={order.contactPhone ?? ""} initial={payment} refreshOnPaid />
+            </div>
+          )}
           <OrderTimeline status={order.status} fulfilment={order.fulfilment} history={order.history} />
 
           <div className="mt-10 border border-[var(--border-subtle)] p-6">

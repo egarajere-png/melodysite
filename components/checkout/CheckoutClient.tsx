@@ -2,22 +2,25 @@
 
 import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, MapPin, Search, Store, Truck } from "lucide-react";
+import { Check, CreditCard, MapPin, Search, Smartphone, Store, Truck } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { formatKES } from "@/lib/format";
-import { initiateMpesaPayment } from "@/lib/payments/mpesa";
+import { toMpesaMsisdn } from "@/lib/payments/phone";
 import { createOrderAction } from "@/app/actions/checkout";
+import { startMpesaPaymentAction } from "@/app/actions/payments";
+import { MpesaPayment } from "@/components/checkout/MpesaPayment";
 import { isPlausibleEmail, isPlausiblePhone } from "@/lib/delivery";
 import type { DeliveryOptions } from "@/lib/supabase/shipping";
 import type { CheckoutPrefill } from "@/lib/supabase/orders";
+import type { MpesaPaymentView } from "@/lib/supabase/payments";
 
 const inputClasses =
   "w-full border-b border-aurum-obsidian/25 bg-transparent py-3 text-sm placeholder:text-aurum-obsidian/40 focus-visible:border-aurum-obsidian focus-visible:outline-none aria-[invalid=true]:border-aurum-earth";
 const fieldLabel = "block text-[11px] uppercase tracking-widest text-aurum-obsidian/50";
 
 type Stage = "form" | "placing" | "awaiting-payment";
-type FieldErrors = Partial<Record<"name" | "email" | "phone" | "group" | "area" | "location" | "recipientName" | "recipientPhone" | "pickup", string>>;
+type FieldErrors = Partial<Record<"name" | "email" | "phone" | "group" | "area" | "location" | "recipientName" | "recipientPhone" | "pickup" | "mpesaPhone", string>>;
 
 function rangeLabel(min: number, max: number) {
   return min === max ? formatKES(min) : `${formatKES(min)} – ${formatKES(max)}`;
@@ -29,20 +32,27 @@ function ChoiceCard({
   onSelect,
   children,
   className = "",
+  disabled = false,
 }: {
   selected: boolean;
   onSelect: () => void;
   children: React.ReactNode;
   className?: string;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       role="radio"
       aria-checked={selected}
+      disabled={disabled}
       onClick={onSelect}
       className={`relative w-full border text-left transition-all ${
-        selected ? "border-aurum-obsidian bg-white shadow-[0_0_0_1px_var(--color-aurum-obsidian)]" : "border-aurum-obsidian/20 hover:border-aurum-obsidian/50"
+        selected
+          ? "border-aurum-obsidian bg-white shadow-[0_0_0_1px_var(--color-aurum-obsidian)]"
+          : disabled
+            ? "cursor-not-allowed border-aurum-obsidian/15 opacity-55"
+            : "border-aurum-obsidian/20 hover:border-aurum-obsidian/50"
       } ${className}`}
     >
       <span
@@ -110,25 +120,20 @@ export function CheckoutClient({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [placedOrder, setPlacedOrder] = useState<{ orderNumber: string; total: number; accessToken: string } | null>(null);
-  const [mpesaMessage, setMpesaMessage] = useState<string | null>(null);
+  // Null until the buyer edits it — until then it follows the contact phone.
+  const [mpesaPhoneEdit, setMpesaPhoneEdit] = useState<string | null>(null);
+  const [payment, setPayment] = useState<MpesaPaymentView | null>(null);
 
   const group = groups.find((g) => g.id === groupId) ?? null;
   const area = group?.areas.find((a) => a.id === areaId) ?? null;
   const pickup = pickupLocations.find((p) => p.id === pickupId) ?? null;
   const shippingTotal = fulfilment === "delivery" ? (area?.amount ?? 0) : 0;
   const total = subtotal + shippingTotal;
+  const mpesaPhone = mpesaPhoneEdit ?? phone;
   const cheapestDelivery = canDeliver ? Math.min(...groups.map((g) => g.minAmount)) : 0;
 
   const areaFilter = areaQuery.trim().toLowerCase();
   const visibleAreas = !group ? [] : areaFilter ? group.areas.filter((a) => a.name.toLowerCase().includes(areaFilter)) : group.areas;
-
-  function whatsappHref() {
-    if (!placedOrder) return "#";
-    const itemLines = lines.map((l) => `• ${l.name} (${l.variantLabel}) x${l.quantity} — ${formatKES(l.unitPrice * l.quantity)}`);
-    const where = fulfilment === "delivery" && group && area ? `Delivery: ${group.name} — ${area.name}, ${location}` : `Pickup: ${pickup?.name ?? ""}`;
-    const text = [`Order ${placedOrder.orderNumber}`, `Phone: ${phone}`, where, "", ...itemLines, "", `Total: ${formatKES(placedOrder.total)}`].join("\n");
-    return `https://wa.me/254700000000?text=${encodeURIComponent(text)}`;
-  }
 
   if (lines.length === 0 && stage === "form") {
     return (
@@ -173,6 +178,7 @@ export function CheckoutClient({
     } else if (!pickup) {
       next.pickup = "Choose a pickup point.";
     }
+    if (!toMpesaMsisdn(mpesaPhone)) next.mpesaPhone = "Enter the Safaricom number you'll pay from, e.g. 0712 345 678.";
     return next;
   }
 
@@ -221,34 +227,22 @@ export function CheckoutClient({
     clearCart();
 
     // Order is real and persisted (PAYMENT_PENDING) regardless of what happens next —
-    // this only decides how payment gets completed, never whether the order "succeeded".
-    try {
-      const mpesaResult = await initiateMpesaPayment({ phone, amount: result.order.total, orderRef: result.order.orderNumber });
-      setMpesaMessage(mpesaResult.message);
-    } catch {
-      setMpesaMessage("Online M-Pesa payment isn't connected yet. Send us your order on WhatsApp and we'll confirm payment directly.");
-    }
+    // this only sends the M-Pesa prompt. Whether it was paid is decided on the server.
+    const started = await startMpesaPaymentAction(result.order.orderNumber, result.order.accessToken, mpesaPhone).catch(() => null);
+    setPayment(started ?? { state: "failed", message: "We couldn't send the M-Pesa request. Try again below.", receipt: null });
     setStage("awaiting-payment");
   }
 
-  if (stage === "awaiting-payment" && placedOrder) {
+  if (stage === "awaiting-payment" && placedOrder && payment) {
     return (
-      <div className="mx-auto max-w-lg border border-aurum-gold/40 bg-aurum-gold/10 p-8 text-center">
-        <p className="font-display text-2xl">Order {placedOrder.orderNumber} placed.</p>
-        <p className="mt-3 text-sm leading-relaxed text-aurum-obsidian/80">{mpesaMessage}</p>
-        <a
-          href={whatsappHref()}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-6 inline-flex items-center bg-aurum-deep px-8 py-4 text-xs uppercase tracking-[0.2em] text-aurum-ivory transition-colors hover:bg-aurum-plum"
-        >
-          Complete Payment on WhatsApp
-        </a>
-        <div className="mt-6">
+      <div className="mx-auto max-w-lg">
+        <p className="mb-6 text-center font-display text-2xl">Order {placedOrder.orderNumber} placed.</p>
+        <MpesaPayment orderNumber={placedOrder.orderNumber} accessToken={placedOrder.accessToken} total={placedOrder.total} defaultPhone={mpesaPhone} initial={payment} />
+        <p className="mt-6 text-center">
           <Link href={`/orders/${placedOrder.orderNumber}?t=${placedOrder.accessToken}`} className="text-xs uppercase tracking-widest underline underline-offset-4">
-            Track this order
+            View this order
           </Link>
-        </div>
+        </p>
       </div>
     );
   }
@@ -269,7 +263,7 @@ export function CheckoutClient({
           {/* 1. Contact */}
           <section>
             <h2 className="mb-1 font-display text-2xl">1. Contact</h2>
-            <p className="mb-5 text-sm text-aurum-obsidian/55">We&apos;ll send your order confirmation and delivery updates here.</p>
+            <p className="mb-5 text-sm text-aurum-obsidian/55">We&apos;ll send your order confirmation and delivery updates by email and WhatsApp.</p>
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label htmlFor="co-name" className={fieldLabel}>Full name</label>
@@ -282,7 +276,7 @@ export function CheckoutClient({
                 <FieldError id="co-email-err" message={errors.email} />
               </div>
               <div>
-                <label htmlFor="co-phone" className={fieldLabel}>Phone (M-Pesa)</label>
+                <label htmlFor="co-phone" className={fieldLabel}>Phone</label>
                 <input id="co-phone" type="tel" autoComplete="tel" placeholder="e.g. 0712 345 678" value={phone} onChange={(e) => { setPhone(e.target.value); clearError("phone"); }} aria-invalid={Boolean(errors.phone)} aria-describedby="co-phone-err" className={inputClasses} />
                 <FieldError id="co-phone-err" message={errors.phone} />
               </div>
@@ -443,8 +437,35 @@ export function CheckoutClient({
 
           {/* 4. Payment */}
           <section>
-            <h2 className="mb-2 font-display text-2xl">3. Payment</h2>
-            <p className="text-sm text-aurum-obsidian/60">Pay with M-Pesa once you place your order.</p>
+            <h2 className="mb-5 font-display text-2xl">3. Payment</h2>
+            <div role="radiogroup" aria-label="Payment method" className="grid gap-3 sm:grid-cols-2">
+              <ChoiceCard selected onSelect={() => {}} className="p-5 pr-10">
+                <Smartphone size={20} strokeWidth={1.5} className="mb-3 text-aurum-obsidian/60" />
+                <p className="text-sm font-medium uppercase tracking-widest">M-Pesa</p>
+                <p className="mt-1 text-sm text-aurum-obsidian/60">Pay from your phone with your M-Pesa PIN</p>
+              </ChoiceCard>
+              <ChoiceCard selected={false} disabled onSelect={() => {}} className="p-5 pr-10">
+                <CreditCard size={20} strokeWidth={1.5} className="mb-3 text-aurum-obsidian/60" />
+                <p className="text-sm font-medium uppercase tracking-widest">Card</p>
+                <p className="mt-1 text-sm text-aurum-obsidian/60">Visa &amp; Mastercard — coming soon</p>
+              </ChoiceCard>
+            </div>
+            <div className="mt-8">
+              <label htmlFor="co-mpesa" className={fieldLabel}>M-Pesa number to pay from</label>
+              <input
+                id="co-mpesa"
+                type="tel"
+                autoComplete="tel"
+                placeholder="e.g. 0712 345 678"
+                value={mpesaPhone}
+                onChange={(e) => { setMpesaPhoneEdit(e.target.value); clearError("mpesaPhone"); }}
+                aria-invalid={Boolean(errors.mpesaPhone)}
+                aria-describedby="co-mpesa-err"
+                className={inputClasses}
+              />
+              <FieldError id="co-mpesa-err" message={errors.mpesaPhone} />
+              <p className="mt-3 text-sm text-aurum-obsidian/55">When you place your order we&apos;ll send a request to this number — enter your M-Pesa PIN on your phone to pay.</p>
+            </div>
           </section>
 
           {formError && (
@@ -458,7 +479,7 @@ export function CheckoutClient({
             disabled={stage === "placing"}
             className="bg-aurum-deep px-8 py-4 text-xs uppercase tracking-[0.2em] text-aurum-ivory transition-colors hover:bg-aurum-plum disabled:opacity-60"
           >
-            {stage === "placing" ? "Placing order…" : `Place Order — ${formatKES(total)}`}
+            {stage === "placing" ? "Placing order…" : `Place Order & Pay — ${formatKES(total)}`}
           </button>
         </form>
       </div>

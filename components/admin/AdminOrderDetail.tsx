@@ -5,7 +5,7 @@ import { formatKES, formatDate } from "@/lib/format";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { STEP_LABELS } from "@/components/orders/OrderTimeline";
 import { updateOrderStatusAction } from "@/app/actions/admin-orders";
-import type { OrderStatus } from "@/lib/supabase/database.types";
+import type { OrderStatus, PaymentStatus } from "@/lib/supabase/database.types";
 import type { AdminOrderDetail as AdminOrderDetailType } from "@/lib/supabase/orders-admin";
 import { useToast } from "@/components/admin/Toast";
 import { describeFulfilment } from "@/lib/delivery";
@@ -22,6 +22,21 @@ const ALL_STATUSES: OrderStatus[] = [
   "CANCELLED",
   "REFUNDED",
 ];
+
+const PAYMENT_LABELS: Record<PaymentStatus, string> = {
+  PENDING: "Sending request",
+  PROCESSING: "Awaiting PIN",
+  SUCCEEDED: "Paid",
+  FAILED: "Failed",
+  CANCELLED: "Cancelled by customer",
+  REFUNDED: "Refunded",
+};
+
+/** "order.IN_TRANSIT" → "In Transit"; "admin.paid_order" → "Admin alert". */
+function notificationLabel(eventType: string): string {
+  if (eventType === "admin.paid_order") return "Admin alert";
+  return STEP_LABELS[eventType.replace("order.", "") as OrderStatus] ?? eventType;
+}
 
 export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
   const toast = useToast();
@@ -157,6 +172,30 @@ export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
         </div>
 
         <div className="border border-aurum-obsidian/10 bg-white p-6">
+          <h2 className="mb-3 font-display text-lg">Payment</h2>
+          {order.payments.length === 0 ? (
+            <p className="text-sm text-aurum-obsidian/50">No M-Pesa payment has been attempted for this order.</p>
+          ) : (
+            <ul className="flex flex-col gap-3 text-sm">
+              {order.payments.map((p) => (
+                <li key={p.id} className="border-b border-aurum-obsidian/10 pb-3 last:border-0 last:pb-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={p.status === "SUCCEEDED" ? "font-medium" : "text-aurum-obsidian/60"}>{PAYMENT_LABELS[p.status]}</span>
+                    <span>{formatKES(p.amount)}</span>
+                  </div>
+                  <p className="text-xs text-aurum-obsidian/50">
+                    {formatDate(p.createdAt)}
+                    {p.phone ? ` · ${p.phone}` : ""}
+                    {p.receipt ? ` · Receipt ${p.receipt}` : ""}
+                  </p>
+                  {p.status !== "SUCCEEDED" && p.failureReason && <p className="mt-1 text-xs text-aurum-obsidian/50">{p.failureReason}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="border border-aurum-obsidian/10 bg-white p-6">
           <h2 className="mb-3 font-display text-lg">Order Status</h2>
           <select
             value={status}
@@ -183,6 +222,31 @@ export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
             {saving ? "Saving…" : "Update Status"}
           </button>
           {message && <p className="mt-2 text-sm text-aurum-obsidian/70">{message}</p>}
+          <p className="mt-3 text-xs text-aurum-obsidian/50">Changing the status emails and WhatsApps the customer.</p>
+        </div>
+
+        <div className="border border-aurum-obsidian/10 bg-white p-6">
+          <h2 className="mb-3 font-display text-lg">Messages sent</h2>
+          {order.notifications.length === 0 ? (
+            <p className="text-sm text-aurum-obsidian/50">Nothing has been sent about this order yet.</p>
+          ) : (
+            <ul className="flex flex-col gap-3 text-sm">
+              {order.notifications.map((n) => (
+                <li key={n.id} className="border-b border-aurum-obsidian/10 pb-3 last:border-0 last:pb-0">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>
+                      {n.channel === "WHATSAPP" ? "WhatsApp" : "Email"} · {notificationLabel(n.eventType)}
+                    </span>
+                    <span className={n.status === "SENT" ? "text-aurum-obsidian/60" : "font-medium text-aurum-earth"}>{n.status === "SENT" ? "Sent" : "Failed"}</span>
+                  </div>
+                  <p className="break-all text-xs text-aurum-obsidian/50">
+                    {formatDate(n.createdAt)} · {n.recipient}
+                  </p>
+                  {n.error && <p className="mt-1 text-xs text-aurum-earth">{n.error}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

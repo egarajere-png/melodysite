@@ -440,7 +440,9 @@ export type Database = {
       }
       email_messages: {
         Row: {
+          channel: string
           created_at: string
+          error: string | null
           event_type: string
           id: string
           inquiry_id: string | null
@@ -451,7 +453,9 @@ export type Database = {
           subject: string
         }
         Insert: {
+          channel?: string
           created_at?: string
+          error?: string | null
           event_type: string
           id?: string
           inquiry_id?: string | null
@@ -462,7 +466,9 @@ export type Database = {
           subject: string
         }
         Update: {
+          channel?: string
           created_at?: string
+          error?: string | null
           event_type?: string
           id?: string
           inquiry_id?: string | null
@@ -963,30 +969,39 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
+          failure_reason: string | null
           id: string
           order_id: string
+          phone: string | null
           provider: Database["public"]["Enums"]["payment_provider"]
           provider_reference: string | null
+          receipt_number: string | null
           status: Database["public"]["Enums"]["payment_status"]
           updated_at: string
         }
         Insert: {
           amount: number
           created_at?: string
+          failure_reason?: string | null
           id?: string
           order_id: string
+          phone?: string | null
           provider: Database["public"]["Enums"]["payment_provider"]
           provider_reference?: string | null
+          receipt_number?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
         }
         Update: {
           amount?: number
           created_at?: string
+          failure_reason?: string | null
           id?: string
           order_id?: string
+          phone?: string | null
           provider?: Database["public"]["Enums"]["payment_provider"]
           provider_reference?: string | null
+          receipt_number?: string | null
           status?: Database["public"]["Enums"]["payment_status"]
           updated_at?: string
         }
@@ -1566,6 +1581,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      confirm_mpesa_payment: {
+        Args: { p_payload?: Json; p_payment_id: string; p_receipt?: string }
+        Returns: string
+      }
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       release_variant_stock: {

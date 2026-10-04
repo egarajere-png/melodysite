@@ -61,11 +61,19 @@ the same `ImageRef` data shape a real photo would use (`kind: "product" | "worn"
 
 ## Payments & Notifications
 
-- **M-Pesa:** `lib/payments/mpesa.ts` is an intentionally unimplemented boundary — there's no backend or Daraja
-  credentials configured. Checkout never fakes a successful payment; instead it offers a WhatsApp fallback so
-  orders can be completed manually until Daraja is wired up.
-- **Email notifications:** not implemented — see Phase 19 of the original brief for the intended event list
-  (order placed, payment received, dispatched, etc.) once a backend/email provider is connected.
+- **M-Pesa:** checkout sends a Daraja STK Push prompt (`lib/payments/mpesa.ts`) and the order is marked paid only
+  when Safaricom confirms it — through the callback at `/api/payments/daraja/<MPESA_CALLBACK_SECRET>` or, if that
+  never arrives, a status query (`lib/supabase/payments.ts`). Unpaid orders can be paid later from the order page.
+  Set the `MPESA_*` variables from `.env.example`, run `supabase/migrations/202610010001_mpesa_payments.sql`, and
+  check the credentials with `npm run check:mpesa -- [phone]`.
+- **Card (Visa/Mastercard):** shown at checkout as "coming soon"; not implemented.
+- **Order notifications:** every order status has one message (`lib/notifications/messages.ts`) sent to the
+  customer by email (a Gmail mailbox over SMTP) and WhatsApp (Meta Cloud API) — when the order is placed, when payment confirms it,
+  and each time staff change its status. Admins get a "new paid order" alert on both channels. Each send is
+  recorded in `email_messages` and listed on the admin order page. WhatsApp needs the templates in
+  `docs/whatsapp-templates.md` approved first; a channel with no keys set is simply skipped. Check the setup with
+  `npm run check:email -- you@example.com` and `npm run setup:whatsapp`. Everything still needed to go live is in
+  `docs/go-live-checklist.md`.
 
 ## Tooling Notes
 

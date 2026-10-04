@@ -42,6 +42,8 @@ export interface OrderDetail extends OrderSummary {
   history: OrderStatusEvent[];
   personalizedMessage: { recipientName: string; message: string } | null;
   shippingAddress: Record<string, string> | null;
+  /** Phone given at checkout — the default number for paying by M-Pesa. */
+  contactPhone: string | null;
 }
 
 export function itemImageFromPath(imagePath: string | null, name: string): ImageRef {
@@ -69,7 +71,7 @@ export async function getCustomerOrders(customerId: string): Promise<OrderSummar
 /** Looks up an order by its human-facing order number (e.g. "AE-9016FBAB"), scoped
  * to RLS — a customer can only ever find their own orders this way, staff can find any. */
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const ORDER_DETAIL_SELECT = "id, order_number, status, fulfilment, subtotal, shipping_total, total, created_at, shipping_address";
+const ORDER_DETAIL_SELECT = "id, order_number, status, fulfilment, subtotal, shipping_total, total, created_at, shipping_address, contact_phone";
 
 /**
  * Guests have no session for RLS to match, so their order is opened with its
@@ -107,6 +109,7 @@ export async function getOrderByNumber(orderNumber: string, accessToken?: string
     total: Number(order.total),
     createdAt: order.created_at,
     shippingAddress: order.shipping_address as Record<string, string> | null,
+    contactPhone: order.contact_phone,
     items: (items ?? []).map((i) => ({
       id: i.id,
       name: i.product_name,
