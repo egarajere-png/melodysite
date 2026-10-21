@@ -4,7 +4,7 @@ import { useState } from "react";
 import { formatKES, formatDate } from "@/lib/format";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { STEP_LABELS } from "@/components/orders/OrderTimeline";
-import { updateOrderStatusAction } from "@/app/actions/admin-orders";
+import { saveTrackingCodeAction, updateOrderStatusAction } from "@/app/actions/admin-orders";
 import type { OrderStatus, PaymentStatus } from "@/lib/supabase/database.types";
 import type { AdminOrderDetail as AdminOrderDetailType } from "@/lib/supabase/orders-admin";
 import { useToast } from "@/components/admin/Toast";
@@ -40,7 +40,12 @@ function notificationLabel(eventType: string): string {
 
 export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
   const toast = useToast();
-  const fulfilment = describeFulfilment(order.fulfilment, order.shippingAddress);
+  const [trackingCode, setTrackingCode] = useState(order.trackingCode ?? "");
+  const [savedTrackingCode, setSavedTrackingCode] = useState(order.trackingCode ?? "");
+  const [savingTracking, setSavingTracking] = useState(false);
+  const fulfilment = describeFulfilment(order.fulfilment, order.shippingAddress, savedTrackingCode);
+  const [fulfilmentKind, ...fulfilmentRest] = fulfilment.headline.split(" · ");
+  const isMtaani = order.shippingAddress?.courier === "pickup_mtaani";
   const [status, setStatus] = useState<OrderStatus>(order.status);
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -57,6 +62,33 @@ export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
       toast.success(`Order ${order.orderNumber} is now ${STEP_LABELS[status]}.`);
     } else {
       toast.error(result.error);
+    }
+  }
+
+  async function handleSaveTracking() {
+    setSavingTracking(true);
+    const result = await saveTrackingCodeAction(order.id, trackingCode);
+    setSavingTracking(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setSavedTrackingCode(trackingCode.trim());
+    toast.success(trackingCode.trim() ? `Tracking code saved — the customer can now see it on their order.` : "Tracking code removed.");
+  }
+
+  /** Everything the Pick Up Mtaani app asks for, ready to paste. */
+  async function copyBookingDetails() {
+    const text = [
+      `Order: ${order.orderNumber}`,
+      ...fulfilment.details.filter((d) => d.label !== "Estimate" && d.label !== "Tracking code").map((d) => `${d.label}: ${d.value}`),
+      `Package value: ${formatKES(order.subtotal)}`,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Booking details copied — paste them into the Pick Up Mtaani app.");
+    } catch {
+      toast.error("Couldn't copy automatically — select the details above instead.");
     }
   }
 
@@ -137,13 +169,13 @@ export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
         </div>
 
         <div className="border-2 border-aurum-obsidian bg-white p-6">
-          <p className="text-[11px] uppercase tracking-widest text-aurum-obsidian/50">{order.fulfilment === "COLLECTION" ? "Pickup" : "Deliver to"}</p>
-          <h2 className="mt-1 font-display text-xl">{fulfilment.headline.replace(/^(Delivery|Pickup) · /, "")}</h2>
+          <p className="text-[11px] uppercase tracking-widest text-aurum-obsidian/50">{fulfilmentKind}</p>
+          <h2 className="mt-1 font-display text-xl">{fulfilmentRest.join(" · ") || fulfilmentKind}</h2>
           <dl className="mt-4 flex flex-col gap-2.5 text-sm">
             {fulfilment.details.map((d) => (
               <div key={d.label} className="grid grid-cols-[8.5rem_1fr] gap-3">
                 <dt className="text-aurum-obsidian/50">{d.label}</dt>
-                <dd className={d.label === "Exact location" ? "font-medium" : ""}>
+                <dd className={["Exact location", "Agent location", "Collect at", "Tracking code"].includes(d.label) ? "font-medium" : ""}>
                   {/phone/i.test(d.label) ? (
                     <a href={`tel:${d.value}`} className="underline-offset-4 hover:underline">
                       {d.value}
@@ -169,6 +201,40 @@ export function AdminOrderDetail({ order }: { order: AdminOrderDetailType }) {
           <p className="mt-4 border-t border-aurum-obsidian/10 pt-3 text-xs text-aurum-obsidian/50">
             {order.fulfilment === "COLLECTION" ? "No delivery fee." : `Delivery fee paid: ${formatKES(order.shippingTotal)}`}
           </p>
+
+          {isMtaani && (
+            <div className="mt-4 border-t border-aurum-obsidian/10 pt-4">
+              <p className="text-[11px] uppercase tracking-widest text-aurum-obsidian/50">Pick Up Mtaani booking</p>
+              <button
+                type="button"
+                onClick={copyBookingDetails}
+                className="mt-2 inline-flex items-center gap-1.5 border border-aurum-obsidian/15 px-3 py-1.5 text-xs uppercase tracking-widest transition-colors hover:border-aurum-obsidian"
+              >
+                Copy booking details
+              </button>
+              <label htmlFor="tracking-code" className="mt-4 block text-sm text-aurum-obsidian/60">
+                Tracking code from the Mtaani app
+              </label>
+              <div className="mt-1.5 flex gap-2">
+                <input
+                  id="tracking-code"
+                  value={trackingCode}
+                  onChange={(e) => setTrackingCode(e.target.value)}
+                  placeholder="e.g. PM-123456"
+                  className="min-w-0 flex-1 border border-aurum-obsidian/15 px-3 py-2 text-sm tracking-wider"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveTracking}
+                  disabled={savingTracking || trackingCode.trim() === savedTrackingCode}
+                  className="bg-aurum-deep px-4 py-2 text-xs uppercase tracking-widest text-aurum-ivory transition-colors hover:bg-aurum-plum disabled:opacity-50"
+                >
+                  {savingTracking ? "Saving…" : "Save"}
+                </button>
+              </div>
+              <p className="mt-2 text-xs text-aurum-obsidian/50">Shown on the customer&apos;s order page and included in the Dispatched / In Transit messages. Save it before changing the status.</p>
+            </div>
+          )}
         </div>
 
         <div className="border border-aurum-obsidian/10 bg-white p-6">

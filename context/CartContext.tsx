@@ -42,8 +42,9 @@ const CartContext = createContext<CartContextValue | null>(null);
 /**
  * The bag is saved to the customer's account (carts/cart_items), so adding to it
  * requires signing in — a signed-out visitor gets the sign-in panel in the drawer.
- * Mutations call server actions that re-derive price and stock themselves; `lines` is
- * always replaced by what the server actually persisted.
+ * Changes show straight away (optimistically), then the server action — which
+ * re-derives price and stock itself — replaces `lines` with what was actually saved,
+ * or puts the bag back as it was if the change was refused.
  *
  * Bags built as a guest (browser storage, from when guest shopping was allowed) are
  * moved into the account once, on first sign-in — repeat-safe on the server.
@@ -78,13 +79,19 @@ export function CartProvider({
     });
   }, [isAuthenticated]);
 
-  function applyResult(result: CartActionResult) {
-    if (result.ok) {
-      setLines(result.lines);
-    } else {
-      setError(result.error);
-      if (result.signInRequired) setSignInRequired(true);
-    }
+  /** Shows `next` now; then the server's answer, or `previous` again if it refused. */
+  function optimistic(previous: CartLine[], next: CartLine[], save: () => Promise<CartActionResult>) {
+    setLines(next);
+    startTransition(async () => {
+      const result = await save().catch((): CartActionResult => ({ ok: false, error: "Could not update your bag. Please try again." }));
+      if (result.ok) {
+        setLines(result.lines);
+      } else {
+        setLines(previous);
+        setError(result.error);
+        if (result.signInRequired) setSignInRequired(true);
+      }
+    });
   }
 
   function addLine(line: Omit<CartLine, "quantity">, quantity = 1) {
@@ -97,17 +104,25 @@ export function CartProvider({
     setSignInRequired(false);
     setLastAdded({ ...line, quantity });
     setIsOpen(true);
-    startTransition(async () => applyResult(await addToCartAction(line.variantId, quantity)));
+    const existing = lines.find((l) => l.variantId === line.variantId);
+    const next = existing
+      ? lines.map((l) => (l.variantId === line.variantId ? { ...l, quantity: Math.min(l.maxStock, l.quantity + quantity) } : l))
+      : [...lines, { ...line, quantity: Math.min(line.maxStock, quantity) }];
+    optimistic(lines, next, () => addToCartAction(line.variantId, quantity));
   }
 
   function updateQuantity(variantId: string, quantity: number) {
     setError(null);
-    startTransition(async () => applyResult(await updateCartQuantityAction(variantId, quantity)));
+    const next =
+      quantity <= 0
+        ? lines.filter((l) => l.variantId !== variantId)
+        : lines.map((l) => (l.variantId === variantId ? { ...l, quantity: Math.min(l.maxStock, quantity) } : l));
+    optimistic(lines, next, () => updateCartQuantityAction(variantId, quantity));
   }
 
   function removeLine(variantId: string) {
     setError(null);
-    startTransition(async () => applyResult(await removeCartItemAction(variantId)));
+    optimistic(lines, lines.filter((l) => l.variantId !== variantId), () => removeCartItemAction(variantId));
   }
 
   function clearCart() {

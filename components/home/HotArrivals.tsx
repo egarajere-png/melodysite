@@ -10,7 +10,7 @@ export async function HotArrivals() {
       <div className="container-aurum">
         <div className="mb-10 flex items-end justify-between gap-4">
           <div>
-            <p className="mb-2 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">04 — This Month</p>
+            <p className="mb-2 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">This Month</p>
             <RevealText as="h2" text="Hot Arrivals" className="font-display text-3xl sm:text-4xl" />
           </div>
         </div>

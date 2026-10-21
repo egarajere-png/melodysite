@@ -12,7 +12,7 @@ export async function ShopByCategory() {
       <div className="container-aurum">
         <div className="mb-10 flex items-end justify-between gap-4">
           <div>
-            <p className="mb-2 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">03 — The Edit</p>
+            <p className="mb-2 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">The Edit</p>
             <RevealText as="h2" text="Shop by Category" className="font-display text-3xl sm:text-4xl" />
           </div>
           <Link href="/shop" className="hidden text-xs uppercase tracking-widest underline underline-offset-4 sm:block">

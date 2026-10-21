@@ -15,7 +15,7 @@ export async function DealOfTheWeek() {
       <div className="container-aurum">
         <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="mb-2 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">07 — {deal.subtitle}</p>
+            <p className="mb-2 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">{deal.subtitle}</p>
             <RevealText as="h2" text={deal.title} className="font-display text-3xl sm:text-4xl" />
             <p className="mt-3 text-sm text-aurum-obsidian/60">Ends {formatDate(deal.endsAt)}</p>
           </div>

@@ -13,7 +13,7 @@ export function AfricanStorytelling() {
         </ImageReveal>
 
         <div>
-          <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">08 — Craftsmanship</p>
+          <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">Craftsmanship</p>
           <RevealText
             as="h2"
             text="Made by hand, in Kenya."

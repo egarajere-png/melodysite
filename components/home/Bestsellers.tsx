@@ -18,7 +18,7 @@ export async function Bestsellers() {
     <section className="border-t border-[var(--border-subtle)] bg-aurum-ivory py-section">
       <div className="container-aurum">
         <div className="mb-10">
-          <p className="mb-2 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">06 — Most Loved</p>
+          <p className="mb-2 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">Most Loved</p>
           <RevealText as="h2" text="Bestsellers" className="font-display text-3xl sm:text-4xl" />
         </div>
 

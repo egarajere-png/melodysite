@@ -8,6 +8,7 @@ import { EditorialImage } from "@/components/ui/EditorialImage";
 import type { Category, ImageRef } from "@/lib/types";
 import { easeEditorial } from "@/lib/motion";
 import { SITE_IMAGES } from "@/lib/site-images";
+import { CONTACT, WHATSAPP_URL } from "@/lib/site";
 
 const MENU_ITEMS: { label: string; href: string; preview: ImageRef }[] = [
   { label: "Shop", href: "/shop", preview: SITE_IMAGES.menuShop },
@@ -90,10 +91,13 @@ export function MenuOverlay({
             </div>
 
             <div className="mt-6 flex flex-wrap gap-6 text-xs uppercase tracking-widest text-aurum-ivory/60">
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hover:text-aurum-ivory">
+              <a href={CONTACT.instagram} target="_blank" rel="noreferrer" className="hover:text-aurum-ivory">
                 Instagram
               </a>
-              <a href="https://wa.me/254700000000" target="_blank" rel="noreferrer" className="hover:text-aurum-ivory">
+              <a href={CONTACT.tiktok} target="_blank" rel="noreferrer" className="hover:text-aurum-ivory">
+                TikTok
+              </a>
+              <a href={WHATSAPP_URL} target="_blank" rel="noreferrer" className="hover:text-aurum-ivory">
                 WhatsApp
               </a>
               <Link href="/contact" onClick={onClose} className="hover:text-aurum-ivory">

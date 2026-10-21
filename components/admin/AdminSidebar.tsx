@@ -14,7 +14,6 @@ import {
   ArrowLeft,
   Receipt,
   History,
-  FileText,
   LogOut,
   FolderTree,
   Truck,
@@ -36,7 +35,6 @@ const ICONS: Record<string, LucideIcon> = {
   "/admin/customers": Users,
   "/admin/inquiries": Mail,
   "/admin/expenses": Receipt,
-  "/admin/content": FileText,
   "/admin/audit-logs": History,
 };
 

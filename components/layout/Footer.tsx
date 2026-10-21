@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { RevealText } from "@/components/motion/RevealText";
+import { CONTACT, WHATSAPP_URL } from "@/lib/site";
 
 const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
   {
@@ -58,18 +59,23 @@ export function Footer() {
             <h3 className="mb-4 text-xs uppercase tracking-widest text-aurum-ivory/50">Connect</h3>
             <ul className="flex flex-col gap-2.5 text-sm">
               <li>
-                <a href="https://instagram.com" target="_blank" rel="noreferrer" className="transition-opacity hover:opacity-60">
+                <a href={CONTACT.instagram} target="_blank" rel="noreferrer" className="transition-opacity hover:opacity-60">
                   Instagram
                 </a>
               </li>
               <li>
-                <a href="https://wa.me/254700000000" target="_blank" rel="noreferrer" className="transition-opacity hover:opacity-60">
-                  WhatsApp
+                <a href={CONTACT.tiktok} target="_blank" rel="noreferrer" className="transition-opacity hover:opacity-60">
+                  TikTok
                 </a>
               </li>
               <li>
-                <a href="mailto:hello@aurumentonet.co.ke" className="break-all transition-opacity hover:opacity-60">
-                  hello@aurumentonet.co.ke
+                <a href={WHATSAPP_URL} target="_blank" rel="noreferrer" className="transition-opacity hover:opacity-60">
+                  WhatsApp · {CONTACT.whatsappDisplay}
+                </a>
+              </li>
+              <li>
+                <a href={`mailto:${CONTACT.email}`} className="break-all transition-opacity hover:opacity-60">
+                  {CONTACT.email}
                 </a>
               </li>
             </ul>

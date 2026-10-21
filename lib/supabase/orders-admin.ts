@@ -33,6 +33,8 @@ export interface AdminOrderDetail extends AdminOrderSummary {
   subtotal: number;
   shippingTotal: number;
   shippingAddress: Record<string, string> | null;
+  /** Pick Up Mtaani tracking code, pasted by staff once the parcel is booked. */
+  trackingCode: string | null;
   items: OrderItemView[];
   history: OrderStatusEvent[];
   personalizedMessage: { recipientName: string; message: string } | null;
@@ -87,7 +89,7 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrderD
   const { data: order, error } = await supabase
     .from("orders")
     .select(
-      "id, order_number, status, fulfilment, subtotal, shipping_total, total, created_at, shipping_address, contact_name, contact_email, contact_phone, customer_id, profiles ( full_name, phone )"
+      "id, order_number, status, fulfilment, subtotal, shipping_total, total, created_at, shipping_address, tracking_code, contact_name, contact_email, contact_phone, customer_id, profiles ( full_name, phone )"
     )
     .eq("order_number", orderNumber)
     .maybeSingle();
@@ -131,6 +133,7 @@ export async function getOrderForAdmin(orderNumber: string): Promise<AdminOrderD
     total: Number(order.total),
     createdAt: order.created_at,
     shippingAddress: order.shipping_address as Record<string, string> | null,
+    trackingCode: order.tracking_code,
     items: (items ?? []).map((i) => ({
       id: i.id,
       name: i.product_name,
@@ -187,10 +190,26 @@ async function moveOrderStock(supabase: Awaited<ReturnType<typeof createClient>>
   }
 }
 
-/** Returns the status the order had before, so callers can tell a real change from a re-save. */
-export async function updateOrderStatus(orderId: string, staffId: string, status: OrderStatus, note?: string): Promise<OrderStatus | null> {
+/** Saves (or clears, with "") the Pick Up Mtaani tracking code. Returns the previous code. */
+export async function setOrderTrackingCode(orderId: string, code: string): Promise<{ previous: string | null; orderNumber: string }> {
   const supabase = await createClient();
-  const { data: before } = await supabase.from("orders").select("status").eq("id", orderId).maybeSingle();
+  const { data: before, error: readErr } = await supabase.from("orders").select("tracking_code, order_number").eq("id", orderId).maybeSingle();
+  if (readErr) throw readErr;
+  if (!before) throw new OrderStatusError("That order no longer exists.");
+  const { error } = await supabase.from("orders").update({ tracking_code: code || null }).eq("id", orderId);
+  if (error) throw error;
+  return { previous: before.tracking_code, orderNumber: before.order_number };
+}
+
+/** Returns the status the order had before, so callers can tell a real change from a re-save. */
+export async function updateOrderStatus(
+  orderId: string,
+  staffId: string,
+  status: OrderStatus,
+  note?: string
+): Promise<{ previous: OrderStatus | null; orderNumber: string | null }> {
+  const supabase = await createClient();
+  const { data: before } = await supabase.from("orders").select("status, order_number").eq("id", orderId).maybeSingle();
 
   // A cancelled order gives its pieces back to the shop; un-cancelling takes them
   // again, and is refused if they've since sold.
@@ -204,5 +223,5 @@ export async function updateOrderStatus(orderId: string, staffId: string, status
     .from("order_status_history")
     .insert({ order_id: orderId, status, note: note || null, actor_id: staffId });
   if (historyErr) throw historyErr;
-  return before?.status ?? null;
+  return { previous: before?.status ?? null, orderNumber: before?.order_number ?? null };
 }

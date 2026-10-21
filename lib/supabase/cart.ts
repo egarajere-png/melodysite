@@ -132,12 +132,12 @@ async function fetchVariant(variantId: string): Promise<RawVariantRow | null> {
 }
 
 export async function addToCart(customerId: string, variantId: string, quantity: number): Promise<CartLine[]> {
-  const variant = await fetchVariant(variantId);
+  // The piece's stock and the customer's bag are looked up together.
+  const [variant, cartId] = await Promise.all([fetchVariant(variantId), getOrCreateCartId(customerId)]);
   if (!variant) throw new Error("This piece is no longer available.");
   const stock = availableStock(variant);
   if (stock <= 0) throw new Error("This piece is currently out of stock.");
 
-  const cartId = await getOrCreateCartId(customerId);
   const supabase = await createClient();
   const { data: existing } = await supabase
     .from("cart_items")

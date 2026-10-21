@@ -5,22 +5,22 @@
 //
 //   npm run check:email -- you@example.com
 //
-// Needs SMTP_USER and SMTP_PASS in .env.local (a Gmail address and its app password).
+// Needs RESEND_API_KEY and EMAIL_FROM in .env.local (EMAIL_FROM on a domain verified in Resend).
 
 import { ADMIN_PAID_ORDER, CUSTOMER_MESSAGES, renderMessage } from "../lib/notifications/messages.ts";
-import { checkSmtpLogin, sendEmail } from "../lib/notifications/email.ts";
+import { checkEmailSetup, sendEmail } from "../lib/notifications/email.ts";
 
 const env = process.env;
 const to = process.argv[2];
 
-const problem = await checkSmtpLogin();
+const { problem, note } = await checkEmailSetup();
 if (problem) {
-  console.error(`✗ Couldn't sign in to the mailbox${env.SMTP_USER ? ` ${env.SMTP_USER}` : ""}: ${problem}`);
-  console.error("  SMTP_USER is the Gmail address and SMTP_PASS its app password (16 letters, from myaccount.google.com/apppasswords —");
-  console.error("  not the normal password). Both go in .env.local. 2-Step Verification must be on for that Google account.");
+  console.error(`✗ Email isn't ready: ${problem}`);
+  console.error("  RESEND_API_KEY comes from resend.com → API Keys; EMAIL_FROM looks like: Aurum Entonet <info@aurumentonet.com>");
   process.exit(1);
 }
-console.log(`✓ Signed in to ${env.SMTP_HOST || "smtp.gmail.com"} as ${env.SMTP_USER}.`);
+console.log(`✓ Resend is set up. Sending as ${env.EMAIL_FROM}.`);
+if (note) console.log(`  Note: ${note}`);
 
 const admins = (env.ADMIN_EMAIL ?? "").split(",").map((a) => a.trim()).filter(Boolean);
 if (!to) {
@@ -33,19 +33,19 @@ const order = {
   lines: [{ label: "Maasai Collar (Gold) × 1", value: "Ksh 4,200" }],
   totals: [
     { label: "Subtotal", value: "Ksh 4,200" },
-    { label: "Delivery", value: "Ksh 300" },
-    { label: "Total", value: "Ksh 4,500" },
+    { label: "Pick Up Mtaani", value: "Ksh 180" },
+    { label: "Total", value: "Ksh 4,380" },
   ],
 };
-const customer = { firstName: "Wanjiru", orderNumber: "AE-SAMPLE", total: "Ksh 4,500", destination: "Madaraka Primary School, Langata", orderUrl: "https://example.com/orders/AE-SAMPLE" };
+const customer = { firstName: "Wanjiru", orderNumber: "AE-SAMPLE", total: "Ksh 4,380", destination: "Bleu Topaz, Kahawa Sukari, Baringo Road (Pick Up Mtaani code PM-123456)", orderUrl: "https://example.com/orders/AE-SAMPLE" };
 const admin = {
   orderNumber: "AE-SAMPLE",
   customerName: "Wanjiru Kamau",
   customerPhone: "0712 345 678",
-  total: "Ksh 4,500",
+  total: "Ksh 4,380",
   receipt: "SJ12ABCDEF",
   items: "Maasai Collar (Gold) x1",
-  fulfilment: "Delivery to Madaraka Primary School, Langata",
+  fulfilment: "Pick Up Mtaani to Bleu Topaz, Kahawa Sukari, Baringo Road",
   adminUrl: "https://example.com/admin/orders/AE-SAMPLE",
 };
 

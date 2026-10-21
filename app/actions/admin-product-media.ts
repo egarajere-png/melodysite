@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireStaffId } from "@/lib/supabase/staff-auth";
 import { logAudit } from "@/lib/supabase/audit-log";
+import { getProductName } from "@/lib/supabase/products-admin";
 import {
   addProductMedia,
   deleteProductMedia,
@@ -32,7 +33,13 @@ export async function addProductMediaAction(input: AddMediaInput): Promise<Produ
     input.productId,
     async (staffId) => {
       await addProductMedia(input);
-      await logAudit(staffId, "product.image_added", "product", input.productId, undefined, { slot: input.slot, path: input.storagePath });
+      const name = (await getProductName(input.productId)) ?? "a product";
+      await logAudit(staffId, "product.image_added", "product", {
+        entityId: input.productId,
+        label: name,
+        summary: `Added a ${String(input.slot).toLowerCase()} image to "${name}"`,
+        after: { Image: input.storagePath.split("/").pop() ?? input.storagePath },
+      });
     },
     "Could not save that image."
   );
@@ -45,7 +52,8 @@ export async function deleteProductMediaAction(productId: string, mediaId: strin
     productId,
     async (staffId) => {
       await deleteProductMedia(productId, mediaId);
-      await logAudit(staffId, "product.image_removed", "product", productId, { mediaId });
+      const name = (await getProductName(productId)) ?? "a product";
+      await logAudit(staffId, "product.image_removed", "product", { entityId: productId, label: name, summary: `Removed an image from "${name}"` });
     },
     "Could not remove that image."
   );

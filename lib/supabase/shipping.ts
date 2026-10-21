@@ -1,18 +1,23 @@
 import { createPublicClient } from "@/lib/supabase/public";
 
-/** A priced place inside a delivery group, e.g. "Langata — KSh 300". Stored in shipping_rates. */
+/** A Pick Up Mtaani agent (or, outside Nairobi, a town) and its fee. Stored in shipping_rates. */
 export interface DeliveryArea {
   id: string;
   name: string;
   amount: number;
   deliveryEstimate: string | null;
+  /** The agent's address; null for a town, where the customer types where to collect. */
+  agentLocation: string | null;
+  hours: string | null;
 }
 
-/** A delivery group, e.g. "Nairobi", with its areas cheapest-first. Stored in shipping_zones. */
+/** A Mtaani location, e.g. "Thika Road", with its agents cheapest-first. Stored in shipping_zones. */
 export interface DeliveryGroup {
   id: string;
   name: string;
   description: string | null;
+  /** "Outside Nairobi": the customer types the town / collection point themselves. */
+  asksCustomerLocation: boolean;
   areas: DeliveryArea[];
   minAmount: number;
   maxAmount: number;
@@ -42,7 +47,7 @@ export async function getDeliveryOptions(): Promise<DeliveryOptions> {
   const [{ data: zones, error }, { data: pickups, error: pickupError }] = await Promise.all([
     supabase
       .from("shipping_zones")
-      .select("id, name, description, sort_order, is_active, shipping_rates ( id, name, amount, delivery_estimate, is_active )")
+      .select("id, name, description, sort_order, is_active, asks_customer_location, shipping_rates ( id, name, amount, delivery_estimate, agent_location, hours, is_active )")
       .eq("is_active", true)
       .order("sort_order")
       .order("name"),
@@ -53,14 +58,15 @@ export async function getDeliveryOptions(): Promise<DeliveryOptions> {
 
   const groups = (zones ?? [])
     .map((z) => {
-      const areas = (z.shipping_rates as { id: string; name: string; amount: number; delivery_estimate: string | null; is_active: boolean }[])
+      const areas = (z.shipping_rates as { id: string; name: string; amount: number; delivery_estimate: string | null; agent_location: string | null; hours: string | null; is_active: boolean }[])
         .filter((r) => r.is_active)
-        .map((r) => ({ id: r.id, name: r.name, amount: Number(r.amount), deliveryEstimate: r.delivery_estimate }))
+        .map((r) => ({ id: r.id, name: r.name, amount: Number(r.amount), deliveryEstimate: r.delivery_estimate, agentLocation: r.agent_location, hours: r.hours }))
         .sort(byPriceThenName);
       return {
         id: z.id,
         name: z.name,
         description: z.description,
+        asksCustomerLocation: z.asks_customer_location,
         areas,
         minAmount: areas.length ? areas[0].amount : 0,
         maxAmount: areas.length ? Math.max(...areas.map((a) => a.amount)) : 0,

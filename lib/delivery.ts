@@ -4,9 +4,15 @@
 
 export interface DeliverySnapshot {
   type: "delivery";
-  zone: string; // group, e.g. "Nairobi"
-  area: string; // e.g. "Langata"
-  location: string; // exact place / landmark, e.g. "Madaraka Primary School"
+  /** Set on every order since delivery moved to Pick Up Mtaani; absent on older door deliveries. */
+  courier?: "pickup_mtaani";
+  zone: string; // group, e.g. "Thika Road" or "Outside Nairobi"
+  area: string; // the Mtaani agent ("Bleu Topaz") or, outside Nairobi, the town ("Nakuru")
+  /** Where the parcel is collected: the agent's address, or what the customer typed for a town. */
+  location: string;
+  /** Present when a Nairobi agent was chosen (rather than a town). */
+  agent_location?: string;
+  agent_hours?: string;
   address_details?: string; // building, house, street
   instructions?: string;
   recipient_name: string;
@@ -34,14 +40,15 @@ interface LegacySnapshot {
 export type ShippingSnapshot = DeliverySnapshot | PickupSnapshot | LegacySnapshot;
 
 export interface FulfilmentSummary {
-  /** One line, e.g. "Delivery · Nairobi — Langata" or "Pickup · Kahawa Sukari Shop". */
+  /** One line, e.g. "Pick Up Mtaani · Thika Road — Bleu Topaz" or "Pickup · Kahawa Sukari Shop". */
   headline: string;
   details: { label: string; value: string }[];
   /** Google Maps search for the drop-off, to double-check the place before dispatch. */
   mapsUrl?: string;
 }
 
-export function describeFulfilment(fulfilment: "DELIVERY" | "COLLECTION", raw: unknown): FulfilmentSummary {
+/** trackingCode is the Pick Up Mtaani code staff paste in once the parcel is booked. */
+export function describeFulfilment(fulfilment: "DELIVERY" | "COLLECTION", raw: unknown, trackingCode?: string | null): FulfilmentSummary {
   const s = (raw ?? {}) as ShippingSnapshot & Record<string, string | undefined>;
 
   if (s.type === "pickup" || (fulfilment === "COLLECTION" && !s.type)) {
@@ -52,6 +59,31 @@ export function describeFulfilment(fulfilment: "DELIVERY" | "COLLECTION", raw: u
         ...(p.pickup_address ? [{ label: "Collect from", value: p.pickup_address }] : []),
         ...(p.pickup_hours ? [{ label: "Hours", value: p.pickup_hours }] : []),
       ],
+    };
+  }
+
+  if (s.type === "delivery" && s.courier === "pickup_mtaani") {
+    const d = s as DeliverySnapshot;
+    const isAgent = Boolean(d.agent_location);
+    return {
+      headline: `Pick Up Mtaani · ${d.zone} — ${d.area}`,
+      details: [
+        ...(isAgent
+          ? [
+              { label: "Mtaani agent", value: d.area },
+              { label: "Agent location", value: d.location },
+              ...(d.agent_hours ? [{ label: "Agent hours", value: d.agent_hours }] : []),
+            ]
+          : [
+              { label: "Town", value: d.area },
+              { label: "Collect at", value: d.location },
+            ]),
+        { label: "Collected by", value: d.recipient_name },
+        { label: "Collector's phone", value: d.phone },
+        ...(d.delivery_estimate ? [{ label: "Estimate", value: d.delivery_estimate }] : []),
+        ...(trackingCode ? [{ label: "Tracking code", value: trackingCode }] : []),
+      ],
+      mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(isAgent ? `${d.area}, ${d.location}` : `${d.location}, ${d.area}`)}`,
     };
   }
 

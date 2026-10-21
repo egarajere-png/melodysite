@@ -1,32 +1,49 @@
-import nodemailer from "nodemailer";
 import type { SendResult } from "@/lib/notifications/whatsapp";
 
-// Email, sent through an ordinary mailbox over SMTP (a Gmail account with an app
-// password by default). Server-only. Gmail allows about 500 emails a day and only
-// sends as the account that signed in, so EMAIL_FROM must use that same address.
+// Email, sent through Resend (resend.com) from the shop's own domain. Server-only.
+// EMAIL_FROM must use a domain that is verified in Resend, e.g.
+// "Aurum Entonet <info@aurumentonet.com>"; Resend refuses anything else.
 
-function smtpSettings() {
-  const user = process.env.SMTP_USER ?? "";
-  // Gmail shows app passwords in groups of four; the spaces aren't part of it.
-  const pass = (process.env.SMTP_PASS ?? "").replace(/\s/g, "");
-  if (!user || !pass) return null;
-  const port = Number(process.env.SMTP_PORT) || 465;
-  return { host: process.env.SMTP_HOST || "smtp.gmail.com", port, secure: port === 465, auth: { user, pass } };
+const RESEND_API = "https://api.resend.com";
+
+function apiKey(): string | null {
+  return process.env.RESEND_API_KEY?.trim() || null;
 }
 
 export function isEmailConfigured(): boolean {
-  return smtpSettings() !== null;
+  return Boolean(apiKey() && process.env.EMAIL_FROM?.trim());
 }
 
-/** Logs in to the mail server without sending anything; resolves with the problem, or null if it worked. */
-export async function checkSmtpLogin(): Promise<string | null> {
-  const settings = smtpSettings();
-  if (!settings) return "SMTP_USER and SMTP_PASS are not both set.";
+/** The address part of EMAIL_FROM: "Aurum Entonet <info@x.com>" → "info@x.com". */
+function fromAddress(): string {
+  const from = process.env.EMAIL_FROM?.trim() ?? "";
+  return (from.match(/<([^>]+)>/)?.[1] ?? from).trim();
+}
+
+/**
+ * Checks the settings without sending anything: the key and sender are present, and —
+ * when the key is allowed to read domains — the sender's domain is verified in Resend.
+ * Resolves with the problem, or null if everything checked out.
+ */
+export async function checkEmailSetup(): Promise<{ problem: string | null; note?: string }> {
+  const key = apiKey();
+  if (!key) return { problem: "RESEND_API_KEY is not set." };
+  const from = fromAddress();
+  if (!from.includes("@")) return { problem: 'EMAIL_FROM is not set, e.g. "Aurum Entonet <info@aurumentonet.com>".' };
+  const domain = from.split("@")[1].toLowerCase();
+
   try {
-    await nodemailer.createTransport(settings).verify();
-    return null;
+    const res = await fetch(`${RESEND_API}/domains`, { headers: { Authorization: `Bearer ${key}` } });
+    // A "sending access" key may not list domains; sending is the real test then.
+    if (res.status === 401 || res.status === 403) return { problem: null, note: `This API key can't list domains, so ${domain} wasn't checked — the sample emails will show whether it works.` };
+    if (!res.ok) return { problem: `Resend answered ${res.status}: ${await res.text()}` };
+    const { data } = (await res.json()) as { data?: { name: string; status: string }[] };
+    const match = data?.find((d) => d.name.toLowerCase() === domain);
+    if (!match) return { problem: `${domain} isn't added in Resend (Domains → Add Domain).` };
+    if (match.status !== "verified") return { problem: `${domain} is in Resend but its status is "${match.status}" — its DNS records aren't confirmed yet.` };
+    return { problem: null };
   } catch (error) {
-    return error instanceof Error ? error.message : "SMTP login failed";
+    return { problem: error instanceof Error ? error.message : "Could not reach Resend." };
   }
 }
 
@@ -40,19 +57,26 @@ interface OutgoingEmail {
 
 async function send(to: string[], email: OutgoingEmail): Promise<SendResult> {
   const recipients = to.map((address) => address.trim()).filter(Boolean);
-  const settings = smtpSettings();
-  if (!settings || recipients.length === 0) return { ok: false, skipped: true };
+  const key = apiKey();
+  if (!key || !isEmailConfigured() || recipients.length === 0) return { ok: false, skipped: true };
 
+  const replyTo = email.replyTo || process.env.SUPPORT_EMAIL?.trim();
   try {
-    const info = await nodemailer.createTransport(settings).sendMail({
-      from: process.env.EMAIL_FROM || `Aurum Entonet <${settings.auth.user}>`,
-      to: recipients,
-      subject: email.subject,
-      text: email.text,
-      html: email.html,
-      replyTo: email.replyTo || process.env.SUPPORT_EMAIL || undefined,
+    const res = await fetch(`${RESEND_API}/emails`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM!.trim(),
+        to: recipients,
+        subject: email.subject,
+        text: email.text,
+        ...(email.html ? { html: email.html } : {}),
+        ...(replyTo ? { reply_to: replyTo } : {}),
+      }),
     });
-    return { ok: true, providerId: info.messageId };
+    const body = (await res.json().catch(() => ({}))) as { id?: string; message?: string };
+    if (!res.ok) return { ok: false, error: body.message ?? `Resend answered ${res.status}` };
+    return { ok: true, providerId: body.id };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Email could not be sent" };
   }

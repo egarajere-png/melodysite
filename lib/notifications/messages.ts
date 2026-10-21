@@ -22,7 +22,7 @@ export interface CustomerMessageContext {
   orderNumber: string;
   /** Already formatted, e.g. "Ksh 4,500". */
   total: string;
-  /** Where the order is going: "Madaraka Primary School, Langata" or the pickup point. */
+  /** Where the order is going: "Bleu Topaz, Kahawa Sukari, Baringo Road (Pick Up Mtaani code PM-123456)" or the pickup point. */
   destination: string;
   orderUrl: string;
 }
@@ -68,19 +68,19 @@ export const CUSTOMER_MESSAGES: Record<OrderStatus, MessageDefinition<CustomerMe
   DISPATCHED: {
     template: "order_dispatched",
     subject: (c) => `Your order ${c.orderNumber} has been dispatched`,
-    text: "Hello {{1}}, your order {{2}} has been handed to our rider for delivery to {{3}}. We will message you again once it is on its way. Follow it at {{4}} at any time.",
+    text: "Hello {{1}}, your order {{2}} has been handed to Pick Up Mtaani for delivery to {{3}}. We will message you again once it is on its way. Follow it at {{4}} at any time.",
     params: (c) => [c.firstName, c.orderNumber, c.destination, c.orderUrl],
   },
   IN_TRANSIT: {
     template: "order_in_transit",
     subject: (c) => `Your order ${c.orderNumber} is on its way`,
-    text: "Hello {{1}}, your order {{2}} is currently in transit to {{3}}. Please keep your phone close, as our rider will call you on arrival. Follow it at {{4}} at any time.",
+    text: "Hello {{1}}, your order {{2}} is currently in transit to {{3}}. Pick Up Mtaani will also send you an SMS once it is ready to collect. Follow it at {{4}} at any time.",
     params: (c) => [c.firstName, c.orderNumber, c.destination, c.orderUrl],
   },
   DELIVERED: {
     template: "order_delivered",
     subject: (c) => `Your order ${c.orderNumber} has been delivered`,
-    text: "Hello {{1}}, your order {{2}} has been delivered to {{3}}. We hope you love it. If anything is not right, please reply to this message and we will make it right.",
+    text: "Hello {{1}}, your order {{2}} has arrived at {{3}} and is ready for you to collect. We hope you love it. If anything is not right, please reply to this message and we will make it right.",
     params: (c) => [c.firstName, c.orderNumber, c.destination],
   },
   COMPLETED: {

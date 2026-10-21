@@ -22,7 +22,7 @@ export function Newsletter() {
   return (
     <section className="bg-aurum-plum py-section text-aurum-ivory">
       <div className="container-aurum flex flex-col items-center text-center">
-        <p className="mb-4 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">09 — Join Us</p>
+        <p className="mb-4 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">Join Us</p>
         <RevealText as="h2" text="Stay in the story." className="font-display text-4xl sm:text-5xl" />
         <p className="mt-4 max-w-md text-sm text-aurum-ivory/75">
           Get new arrivals, collections and Aurum news — no spam, unsubscribe any time.

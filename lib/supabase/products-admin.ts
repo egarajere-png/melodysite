@@ -21,6 +21,8 @@ export interface AdminProductListItem {
   price: number;
   totalStock: number;
   isActive: boolean;
+  /** Every variant's SKU, so staff can search by one. */
+  skus: string[];
 }
 
 export interface AdminVariantInput {
@@ -64,12 +66,12 @@ export async function getAdminProductList(): Promise<AdminProductListItem[]> {
   const { data, error } = await supabase
     .from("products")
     .select(
-      "id, slug, name, base_price, is_active, product_categories ( categories ( name ) ), product_variants ( is_active, inventory ( quantity_on_hand, quantity_reserved ) )"
+      "id, slug, name, base_price, is_active, product_categories ( categories ( name ) ), product_variants ( sku, is_active, inventory ( quantity_on_hand, quantity_reserved ) )"
     )
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data ?? []).map((p) => {
-    const variants = p.product_variants as unknown as { is_active: boolean; inventory: { quantity_on_hand: number; quantity_reserved: number } | null }[];
+    const variants = p.product_variants as unknown as { sku: string; is_active: boolean; inventory: { quantity_on_hand: number; quantity_reserved: number } | null }[];
     const totalStock = variants
       .filter((v) => v.is_active)
       .reduce((sum, v) => sum + Math.max(0, (v.inventory?.quantity_on_hand ?? 0) - (v.inventory?.quantity_reserved ?? 0)), 0);
@@ -81,8 +83,16 @@ export async function getAdminProductList(): Promise<AdminProductListItem[]> {
       price: Number(p.base_price),
       totalStock,
       isActive: p.is_active,
+      skus: variants.map((v) => v.sku).filter(Boolean),
     };
   });
+}
+
+/** Just the name, for audit entries about a product. */
+export async function getProductName(id: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("products").select("name").eq("id", id).maybeSingle();
+  return data?.name ?? null;
 }
 
 export async function getAdminProduct(id: string): Promise<AdminProductDetail | null> {

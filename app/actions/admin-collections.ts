@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { requireStaffId } from "@/lib/supabase/staff-auth";
 import { CollectionError, createCollection, deleteCollection, getAdminCollections, updateCollection, type AdminCollection, type CollectionInput } from "@/lib/supabase/collections-admin";
-import { logAudit } from "@/lib/supabase/audit-log";
+import { changedFields, listNames, logAudit, type AuditFields } from "@/lib/supabase/audit-log";
+
+function collectionFields(c: CollectionInput | AdminCollection): AuditFields {
+  return { Name: c.name.trim(), Description: (c.description ?? "").trim() || "None", Visible: c.isActive ? "Yes" : "No", Products: c.productIds.length };
+}
 
 export type AdminCollectionActionResult = { ok: true; collections: AdminCollection[] } | { ok: false; error: string };
 
@@ -28,7 +32,12 @@ export async function createCollectionAction(input: CollectionInput): Promise<Ad
   if (!data.name) return { ok: false, error: "Enter a collection name." };
   return run(async (staffId) => {
     const id = await createCollection(data);
-    await logAudit(staffId, "collection.created", "collection", id, undefined, { name: data.name, products: data.productIds.length });
+    await logAudit(staffId, "collection.created", "collection", {
+      entityId: id,
+      label: data.name,
+      summary: `Created collection "${data.name}" with ${data.productIds.length} product${data.productIds.length === 1 ? "" : "s"}`,
+      after: collectionFields(data),
+    });
   }, "Could not create that collection.");
 }
 
@@ -36,14 +45,22 @@ export async function updateCollectionAction(id: string, input: CollectionInput)
   const data = clean(input);
   if (!data.name) return { ok: false, error: "Enter a collection name." };
   return run(async (staffId) => {
+    const previous = (await getAdminCollections().catch(() => [])).find((c) => c.id === id) ?? null;
     await updateCollection(id, data);
-    await logAudit(staffId, "collection.updated", "collection", id, undefined, { name: data.name, isActive: data.isActive, products: data.productIds.length });
+    const diff = previous ? changedFields(collectionFields(previous), collectionFields(data)) : null;
+    await logAudit(staffId, "collection.updated", "collection", {
+      entityId: id,
+      label: data.name,
+      summary: diff?.names.length ? `Edited collection "${data.name}" — changed ${listNames(diff.names)}` : `Saved collection "${data.name}" (no changes)`,
+      before: diff?.before,
+      after: diff ? diff.after : collectionFields(data),
+    });
   }, "Could not save that collection.");
 }
 
 export async function deleteCollectionAction(id: string, name: string): Promise<AdminCollectionActionResult> {
   return run(async (staffId) => {
     await deleteCollection(id);
-    await logAudit(staffId, "collection.deleted", "collection", id, { name });
+    await logAudit(staffId, "collection.deleted", "collection", { entityId: id, label: name, summary: `Deleted collection "${name}"` });
   }, "Could not delete that collection.");
 }

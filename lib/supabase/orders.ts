@@ -11,10 +11,9 @@ export interface PersonalizedMessageInput {
 }
 
 export interface DeliveryDetailsInput {
-  areaId: string; // shipping_rates.id — sets the group, area name and fee
-  location: string; // exact place / landmark
-  addressDetails?: string;
-  instructions?: string;
+  areaId: string; // shipping_rates.id — the Mtaani agent or town; sets the fee
+  /** Only for a town outside Nairobi: where in that town they want to collect. */
+  location?: string;
   recipientName: string;
   recipientPhone: string;
 }
@@ -63,30 +62,36 @@ async function resolveFulfilment(input: CreateOrderInput): Promise<{
   }
 
   const d = input.delivery;
-  if (!d?.areaId) throw new CheckoutError("Please choose your delivery area.");
-  const location = clean(d.location);
+  if (!d?.areaId) throw new CheckoutError("Please choose a Pick Up Mtaani agent.");
   const recipientName = clean(d.recipientName, 120);
   const recipientPhone = clean(d.recipientPhone, 30);
-  if (!location) throw new CheckoutError("Please enter the exact delivery location or a nearby landmark.");
-  if (!recipientName) throw new CheckoutError("Please enter the recipient's name.");
-  if (!isPlausiblePhone(recipientPhone)) throw new CheckoutError("Please enter a valid phone number for the recipient.");
+  if (!recipientName) throw new CheckoutError("Please enter the name of the person collecting.");
+  if (!isPlausiblePhone(recipientPhone)) throw new CheckoutError("Please enter a valid phone number for the person collecting.");
 
   const { data: area } = await supabase
     .from("shipping_rates")
-    .select("id, name, amount, delivery_estimate, is_active, shipping_zones ( name, is_active )")
+    .select("id, name, amount, delivery_estimate, agent_location, hours, is_active, shipping_zones ( name, is_active, asks_customer_location )")
     .eq("id", d.areaId)
     .maybeSingle();
-  const zone = area?.shipping_zones as unknown as { name: string; is_active: boolean } | null;
-  if (!area || !area.is_active || !zone?.is_active) throw new CheckoutError("That delivery area is no longer available. Please choose another.");
+  const zone = area?.shipping_zones as unknown as { name: string; is_active: boolean; asks_customer_location: boolean } | null;
+  if (!area || !area.is_active || !zone?.is_active) throw new CheckoutError("That Pick Up Mtaani agent is no longer available. Please choose another.");
+
+  // A Nairobi agent is the collection point; for a town the customer says where.
+  const typedLocation = clean(d.location);
+  if ((zone.asks_customer_location || !area.agent_location) && !typedLocation) {
+    throw new CheckoutError(`Please tell us where in ${area.name} you'd like to collect your order.`);
+  }
+  const location = area.agent_location && !zone.asks_customer_location ? area.agent_location : typedLocation;
 
   return {
     snapshot: {
       type: "delivery",
+      courier: "pickup_mtaani",
       zone: zone.name,
       area: area.name,
       location,
-      ...(clean(d.addressDetails) ? { address_details: clean(d.addressDetails) } : {}),
-      ...(clean(d.instructions, 500) ? { instructions: clean(d.instructions, 500) } : {}),
+      ...(area.agent_location && !zone.asks_customer_location ? { agent_location: area.agent_location } : {}),
+      ...(area.hours ? { agent_hours: area.hours } : {}),
       recipient_name: recipientName,
       phone: recipientPhone,
       ...(area.delivery_estimate ? { delivery_estimate: area.delivery_estimate } : {}),
@@ -160,7 +165,8 @@ export async function createOrder(customerId: string, input: CreateOrderInput): 
   if (!isPlausibleEmail(contactEmail)) throw new CheckoutError("Please enter a valid email address — we'll send your order updates there.");
   if (!isPlausiblePhone(contactPhone)) throw new CheckoutError("Please enter a valid phone number.");
 
-  const lines = await getCartLines(customerId);
+  // The bag and the delivery choice don't depend on each other — load both at once.
+  const [lines, { snapshot, shippingRateId, shippingTotal }] = await Promise.all([getCartLines(customerId), resolveFulfilment(input)]);
   if (lines.length === 0) throw new CheckoutError("Your bag is empty, or its pieces have just sold out.");
 
   // Stock is reserved with the service-role client; this only ever runs server-side,
@@ -169,78 +175,79 @@ export async function createOrder(customerId: string, input: CreateOrderInput): 
   const reserved: { variantId: string; quantity: number }[] = [];
 
   try {
-    for (const line of lines) {
-      const { data: ok, error } = await stockClient.rpc("reserve_variant_stock", {
-        p_variant_id: line.variantId,
-        p_quantity: line.quantity,
-      });
-      if (error) throw error;
-      if (!ok) throw new CheckoutError(`"${line.name}" no longer has enough stock. Please update your bag.`);
-      reserved.push({ variantId: line.variantId, quantity: line.quantity });
-    }
-
-    const { snapshot, shippingRateId, shippingTotal } = await resolveFulfilment(input);
+    // Every line is reserved at once; whatever did get reserved is released below if
+    // any line fails.
+    const attempts = await Promise.all(
+      lines.map(async (line) => {
+        const { data: ok, error } = await stockClient.rpc("reserve_variant_stock", { p_variant_id: line.variantId, p_quantity: line.quantity });
+        if (ok && !error) reserved.push({ variantId: line.variantId, quantity: line.quantity });
+        return { line, ok: Boolean(ok), error };
+      })
+    );
+    const failed = attempts.find((a) => a.error || !a.ok);
+    if (failed?.error) throw failed.error;
+    if (failed) throw new CheckoutError(`"${failed.line.name}" no longer has enough stock. Please update your bag.`);
 
     const subtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
     const total = subtotal + shippingTotal;
 
     const admin = createAdminClient();
-    const { data: order, error: orderErr } = await admin
-      .from("orders")
-      .insert({
-        customer_id: customerId,
-        status: "PAYMENT_PENDING",
-        fulfilment: input.fulfilment === "delivery" ? "DELIVERY" : "COLLECTION",
-        shipping_address: snapshot as unknown as Json,
-        shipping_rate_id: shippingRateId,
-        contact_name: contactName,
-        contact_email: contactEmail,
-        contact_phone: contactPhone,
-        subtotal,
-        shipping_total: shippingTotal,
-        discount_total: 0,
-        total,
-        currency: "KES",
-      })
-      .select("id, order_number, total, access_token")
-      .single();
-    if (orderErr) throw orderErr;
-
     // unit_cost is snapshotted at order time (like unit_price) so a later cost-price
     // change doesn't retroactively change historical profit — analytics reads this
     // column directly rather than re-deriving it from the current product.
-    const { data: costRows } = await admin.from("products").select("id, cost_price").in("id", lines.map((l) => l.productId));
+    const [{ data: order, error: orderErr }, { data: costRows }] = await Promise.all([
+      admin
+        .from("orders")
+        .insert({
+          customer_id: customerId,
+          status: "PAYMENT_PENDING",
+          fulfilment: input.fulfilment === "delivery" ? "DELIVERY" : "COLLECTION",
+          shipping_address: snapshot as unknown as Json,
+          shipping_rate_id: shippingRateId,
+          contact_name: contactName,
+          contact_email: contactEmail,
+          contact_phone: contactPhone,
+          subtotal,
+          shipping_total: shippingTotal,
+          discount_total: 0,
+          total,
+          currency: "KES",
+        })
+        .select("id, order_number, total, access_token")
+        .single(),
+      admin.from("products").select("id, cost_price").in("id", lines.map((l) => l.productId)),
+    ]);
+    if (orderErr) throw orderErr;
     const costByProductId = new Map((costRows ?? []).map((p) => [p.id, p.cost_price]));
 
-    const { error: itemsErr } = await admin.from("order_items").insert(
-      lines.map((l) => ({
-        order_id: order.id,
-        product_id: l.productId,
-        variant_id: l.variantId,
-        product_name: l.name,
-        variant_name: l.variantLabel,
-        sku: l.sku,
-        quantity: l.quantity,
-        unit_price: l.unitPrice,
-        unit_cost: costByProductId.get(l.productId) ?? null,
-        image_path: imageReference(l),
-      }))
-    );
+    // The order's own rows are independent of each other, so they're written together.
+    const [{ error: itemsErr }, { error: historyErr }, { error: msgErr }] = await Promise.all([
+      admin.from("order_items").insert(
+        lines.map((l) => ({
+          order_id: order.id,
+          product_id: l.productId,
+          variant_id: l.variantId,
+          product_name: l.name,
+          variant_name: l.variantLabel,
+          sku: l.sku,
+          quantity: l.quantity,
+          unit_price: l.unitPrice,
+          unit_cost: costByProductId.get(l.productId) ?? null,
+          image_path: imageReference(l),
+        }))
+      ),
+      admin.from("order_status_history").insert({ order_id: order.id, status: "PAYMENT_PENDING", note: "Order placed." }),
+      input.personalizedMessage
+        ? admin.from("order_personalized_messages").insert({
+            order_id: order.id,
+            recipient_name: input.personalizedMessage.recipientName,
+            message: input.personalizedMessage.message,
+          })
+        : Promise.resolve({ error: null }),
+    ]);
     if (itemsErr) throw itemsErr;
-
-    const { error: historyErr } = await admin
-      .from("order_status_history")
-      .insert({ order_id: order.id, status: "PAYMENT_PENDING", note: "Order placed." });
     if (historyErr) throw historyErr;
-
-    if (input.personalizedMessage) {
-      const { error: msgErr } = await admin.from("order_personalized_messages").insert({
-        order_id: order.id,
-        recipient_name: input.personalizedMessage.recipientName,
-        message: input.personalizedMessage.message,
-      });
-      if (msgErr) throw msgErr;
-    }
+    if (msgErr) throw msgErr;
 
     await clearCart(customerId);
 

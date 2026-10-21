@@ -19,11 +19,10 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   { href: "/admin/categories", label: "Categories", adminOnly: false },
   { href: "/admin/collections", label: "Collections", adminOnly: false },
   { href: "/admin/deals", label: "Deals", adminOnly: false },
-  { href: "/admin/analytics", label: "Analytics", adminOnly: false },
+  { href: "/admin/analytics", label: "Analytics", adminOnly: true },
   { href: "/admin/customers", label: "Customers & Access", adminOnly: true },
   { href: "/admin/inquiries", label: "Inquiries", adminOnly: false },
   { href: "/admin/expenses", label: "Expenses", adminOnly: true },
-  { href: "/admin/content", label: "Content", adminOnly: true },
   { href: "/admin/audit-logs", label: "Audit Log", adminOnly: true },
 ];
 
@@ -37,8 +36,8 @@ export const ROLE_LABELS: Record<UserRole, string> = { CUSTOMER: "Customer", ASS
 
 export const ROLE_SUMMARIES: Record<UserRole, string> = {
   CUSTOMER: "Shops on the website only — no admin panel access. Everyone starts here.",
-  ASSISTANT: "Runs day-to-day operations: products, orders, delivery, catalogue, deals, analytics and inquiries.",
-  ADMIN: "Full access, including customers & access, expenses, site content and the audit log.",
+  ASSISTANT: "Runs day-to-day operations: products, orders, delivery, catalogue, deals and inquiries. Does not see sales figures or profit.",
+  ADMIN: "Full access, including analytics, customers & access, expenses and the audit log.",
 };
 
 /** True when a path under /admin is restricted to ADMIN. */

@@ -1,8 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 
 /**
- * Staff management of delivery groups (shipping_zones), the priced areas inside them
- * (shipping_rates) and pickup points. RLS limits writes to is_staff().
+ * Staff management of Pick Up Mtaani locations (shipping_zones), the agents inside them
+ * with their fees (shipping_rates) and the shop's own pickup points. RLS limits writes
+ * to is_staff(). In code these are still "groups" and "areas".
  *
  * orders.shipping_rate_id references an area, so an area (or a group containing one)
  * that past orders used can't be hard-deleted — it's hidden instead, keeping order
@@ -14,6 +15,8 @@ export interface AdminArea {
   name: string;
   amount: number;
   deliveryEstimate: string | null;
+  agentLocation: string | null;
+  hours: string | null;
   isActive: boolean;
 }
 
@@ -21,6 +24,7 @@ export interface AdminGroup {
   id: string;
   name: string;
   description: string | null;
+  asksCustomerLocation: boolean;
   isActive: boolean;
   sortOrder: number;
   areas: AdminArea[];
@@ -49,7 +53,7 @@ export async function getAdminDeliverySettings(): Promise<AdminDeliverySettings>
   const [{ data: zones, error }, { data: pickups, error: pickupError }] = await Promise.all([
     supabase
       .from("shipping_zones")
-      .select("id, name, description, is_active, sort_order, shipping_rates ( id, name, amount, delivery_estimate, is_active )")
+      .select("id, name, description, is_active, sort_order, asks_customer_location, shipping_rates ( id, name, amount, delivery_estimate, agent_location, hours, is_active )")
       .order("sort_order")
       .order("name"),
     supabase.from("pickup_locations").select("id, name, address, hours, directions, is_active").order("sort_order").order("name"),
@@ -62,10 +66,11 @@ export async function getAdminDeliverySettings(): Promise<AdminDeliverySettings>
       id: z.id,
       name: z.name,
       description: z.description,
+      asksCustomerLocation: z.asks_customer_location,
       isActive: z.is_active,
       sortOrder: z.sort_order,
-      areas: (z.shipping_rates as { id: string; name: string; amount: number; delivery_estimate: string | null; is_active: boolean }[])
-        .map((r) => ({ id: r.id, name: r.name, amount: Number(r.amount), deliveryEstimate: r.delivery_estimate, isActive: r.is_active }))
+      areas: (z.shipping_rates as { id: string; name: string; amount: number; delivery_estimate: string | null; agent_location: string | null; hours: string | null; is_active: boolean }[])
+        .map((r) => ({ id: r.id, name: r.name, amount: Number(r.amount), deliveryEstimate: r.delivery_estimate, agentLocation: r.agent_location, hours: r.hours, isActive: r.is_active }))
         .sort((a, b) => a.amount - b.amount || a.name.localeCompare(b.name)),
     })),
     pickups: (pickups ?? []).map((p) => ({ id: p.id, name: p.name, address: p.address, hours: p.hours, directions: p.directions, isActive: p.is_active })),
@@ -81,6 +86,8 @@ function isForeignKeyViolation(error: { code?: string } | null) {
 export interface GroupInput {
   name: string;
   description: string;
+  /** The customer types the town / collection point (e.g. "Outside Nairobi"). */
+  asksCustomerLocation: boolean;
   isActive: boolean;
 }
 
@@ -89,14 +96,21 @@ export async function createGroup(input: GroupInput): Promise<void> {
   const { data: last } = await supabase.from("shipping_zones").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
   const { error } = await supabase
     .from("shipping_zones")
-    .insert({ name: input.name, description: input.description || null, is_active: input.isActive, sort_order: (last?.sort_order ?? -1) + 1 });
+    .insert({
+      name: input.name,
+      description: input.description || null,
+      asks_customer_location: input.asksCustomerLocation,
+      courier: "pickup_mtaani",
+      is_active: input.isActive,
+      sort_order: (last?.sort_order ?? -1) + 1,
+    });
   if (error?.code === "23505") throw new DeliveryError(`A delivery group called "${input.name}" already exists.`);
   if (error) throw error;
 }
 
 export async function updateGroup(id: string, input: GroupInput): Promise<void> {
   const supabase = await createClient();
-  const { error } = await supabase.from("shipping_zones").update({ name: input.name, description: input.description || null, is_active: input.isActive }).eq("id", id);
+  const { error } = await supabase.from("shipping_zones").update({ name: input.name, description: input.description || null, asks_customer_location: input.asksCustomerLocation, is_active: input.isActive }).eq("id", id);
   if (error?.code === "23505") throw new DeliveryError(`A delivery group called "${input.name}" already exists.`);
   if (error) throw error;
 }
@@ -141,11 +155,13 @@ export interface AreaInput {
   name: string;
   amount: number;
   deliveryEstimate: string;
+  agentLocation: string;
+  hours: string;
   isActive: boolean;
 }
 
 function validateArea(input: AreaInput) {
-  if (!input.name.trim()) throw new DeliveryError("Enter the area name.");
+  if (!input.name.trim()) throw new DeliveryError("Enter the agent's name.");
   if (!Number.isFinite(input.amount) || input.amount < 0) throw new DeliveryError("Enter a delivery price of 0 or more.");
 }
 
@@ -156,7 +172,15 @@ export async function createArea(groupId: string, input: AreaInput): Promise<voi
   if (clash?.length) throw new DeliveryError(`"${input.name}" is already in this group.`);
   const { error } = await supabase
     .from("shipping_rates")
-    .insert({ shipping_zone_id: groupId, name: input.name, amount: input.amount, delivery_estimate: input.deliveryEstimate || null, is_active: input.isActive });
+    .insert({
+      shipping_zone_id: groupId,
+      name: input.name,
+      amount: input.amount,
+      delivery_estimate: input.deliveryEstimate || null,
+      agent_location: input.agentLocation || null,
+      hours: input.hours || null,
+      is_active: input.isActive,
+    });
   if (error) throw error;
 }
 
@@ -165,7 +189,14 @@ export async function updateArea(id: string, input: AreaInput): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase
     .from("shipping_rates")
-    .update({ name: input.name, amount: input.amount, delivery_estimate: input.deliveryEstimate || null, is_active: input.isActive })
+    .update({
+      name: input.name,
+      amount: input.amount,
+      delivery_estimate: input.deliveryEstimate || null,
+      agent_location: input.agentLocation || null,
+      hours: input.hours || null,
+      is_active: input.isActive,
+    })
     .eq("id", id);
   if (error) throw error;
 }

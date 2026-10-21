@@ -17,7 +17,8 @@ export default async function OrderStatusPage({ params, searchParams }: { params
   const token = Array.isArray(sp.t) ? sp.t[0] : sp.t;
   const order = await getOrderByNumber(id.toUpperCase(), token);
   if (!order) notFound();
-  const fulfilment = describeFulfilment(order.fulfilment, order.shippingAddress);
+  const fulfilment = describeFulfilment(order.fulfilment, order.shippingAddress, order.trackingCode);
+  const [fulfilmentKind, ...fulfilmentRest] = fulfilment.headline.split(" · ");
   // Unpaid orders can be paid from here, so closing the checkout tab never strands one.
   const payment = order.status === "PAYMENT_PENDING" ? await getMpesaPaymentView(order.id).catch(() => null) : null;
 
@@ -36,13 +37,13 @@ export default async function OrderStatusPage({ params, searchParams }: { params
           <OrderTimeline status={order.status} fulfilment={order.fulfilment} history={order.history} />
 
           <div className="mt-10 border border-[var(--border-subtle)] p-6">
-            <p className="mb-2 text-xs uppercase tracking-widest text-aurum-obsidian/50">{order.fulfilment === "COLLECTION" ? "Pickup" : "Delivery"}</p>
-            <p className="font-display text-lg">{fulfilment.headline.replace(/^(Delivery|Pickup) · /, "")}</p>
+            <p className="mb-2 text-xs uppercase tracking-widest text-aurum-obsidian/50">{fulfilmentKind}</p>
+            <p className="font-display text-lg">{fulfilmentRest.join(" · ") || fulfilmentKind}</p>
             <dl className="mt-3 flex flex-col gap-1.5 text-sm">
               {fulfilment.details.map((d) => (
                 <div key={d.label} className="flex flex-wrap gap-x-2">
                   <dt className="text-aurum-obsidian/50">{d.label}:</dt>
-                  <dd>{d.value}</dd>
+                  <dd className={d.label === "Tracking code" ? "font-medium tracking-wider" : ""}>{d.value}</dd>
                 </div>
               ))}
             </dl>

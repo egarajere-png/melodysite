@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getProducts } from "@/lib/supabase/catalogue";
+import { SITE_URL } from "@/lib/site";
 
-const siteUrl = "https://aurumentonet.co.ke";
+const siteUrl = SITE_URL;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = ["", "/shop", "/about", "/contact"].map((path) => ({

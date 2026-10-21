@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { SITE_URL } from "@/lib/site";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatKES } from "@/lib/format";
 import type { DeliverySnapshot, PickupSnapshot } from "@/lib/delivery";
@@ -16,7 +17,6 @@ import { sendWhatsappTemplate, type SendResult } from "@/lib/notifications/whats
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://aurumentonet.co.ke").replace(/\/+$/, "");
 
 function list(value: string | undefined): string[] {
   return (value ?? "")
@@ -45,7 +45,7 @@ interface LoadedOrder {
 async function loadOrder(admin: Admin, orderId: string): Promise<LoadedOrder | null> {
   const { data: order } = await admin
     .from("orders")
-    .select("id, order_number, access_token, fulfilment, shipping_address, contact_name, contact_email, contact_phone, customer_id, subtotal, shipping_total, total")
+    .select("id, order_number, access_token, fulfilment, shipping_address, tracking_code, contact_name, contact_email, contact_phone, customer_id, subtotal, shipping_total, total")
     .eq("id", orderId)
     .maybeSingle();
   if (!order) return null;
@@ -64,9 +64,12 @@ async function loadOrder(admin: Admin, orderId: string): Promise<LoadedOrder | n
 
   const snapshot = (order.shipping_address ?? {}) as Partial<DeliverySnapshot> & Partial<PickupSnapshot>;
   const isPickup = order.fulfilment === "COLLECTION";
-  const destination = isPickup
+  const isAgent = snapshot.courier === "pickup_mtaani" && Boolean(snapshot.agent_location);
+  const place = isPickup
     ? [snapshot.pickup_name, snapshot.pickup_address].filter(Boolean).join(", ") || "our pickup point"
-    : [snapshot.location, snapshot.area].filter(Boolean).join(", ") || "your delivery address";
+    : (isAgent ? [snapshot.area, snapshot.location] : [snapshot.location, snapshot.area]).filter(Boolean).join(", ") || "your delivery address";
+  // Once staff have booked the parcel, every later message carries its Mtaani code.
+  const destination = !isPickup && order.tracking_code ? `${place} (Pick Up Mtaani code ${order.tracking_code})` : place;
 
   return {
     id: order.id,
@@ -77,14 +80,14 @@ async function loadOrder(admin: Admin, orderId: string): Promise<LoadedOrder | n
     total: Number(order.total),
     receipt: payment?.receipt_number ?? null,
     destination,
-    fulfilmentLine: `${isPickup ? "Pickup at" : "Delivery to"} ${destination}`,
+    fulfilmentLine: `${isPickup ? "Pickup at" : snapshot.courier === "pickup_mtaani" ? "Pick Up Mtaani to" : "Delivery to"} ${destination}`,
     orderUrl: `${SITE_URL}/orders/${order.order_number}?t=${order.access_token}`,
     adminUrl: `${SITE_URL}/admin/orders/${order.order_number}`,
     itemsLine: (items ?? []).map((i) => `${i.product_name} (${i.variant_name}) x${i.quantity}`).join(", ") || "-",
     lines: (items ?? []).map((i) => ({ label: `${i.product_name} (${i.variant_name}) × ${i.quantity}`, value: formatKES(Number(i.unit_price) * i.quantity) })),
     totals: [
       { label: "Subtotal", value: formatKES(Number(order.subtotal)) },
-      { label: isPickup ? "Pickup" : "Delivery", value: Number(order.shipping_total) > 0 ? formatKES(Number(order.shipping_total)) : "Free" },
+      { label: isPickup ? "Pickup" : snapshot.courier === "pickup_mtaani" ? "Pick Up Mtaani" : "Delivery", value: Number(order.shipping_total) > 0 ? formatKES(Number(order.shipping_total)) : "Free" },
       { label: "Total", value: formatKES(Number(order.total)) },
     ],
   };

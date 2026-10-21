@@ -9,7 +9,7 @@ import { whatsappLink } from "@/lib/support";
 import { getMpesaPaymentStatusAction, startMpesaPaymentAction } from "@/app/actions/payments";
 import type { MpesaPaymentView } from "@/lib/supabase/payments";
 
-const POLL_EVERY_MS = 4000;
+const POLL_EVERY_MS = 2000;
 
 /**
  * Pays for an existing order with M-Pesa: sends the prompt, waits while the customer

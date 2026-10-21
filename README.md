@@ -68,7 +68,7 @@ the same `ImageRef` data shape a real photo would use (`kind: "product" | "worn"
   check the credentials with `npm run check:mpesa -- [phone]`.
 - **Card (Visa/Mastercard):** shown at checkout as "coming soon"; not implemented.
 - **Order notifications:** every order status has one message (`lib/notifications/messages.ts`) sent to the
-  customer by email (a Gmail mailbox over SMTP) and WhatsApp (Meta Cloud API) — when the order is placed, when payment confirms it,
+  customer by email (Resend, from aurumentonet.com) and WhatsApp (Meta Cloud API) — when the order is placed, when payment confirms it,
   and each time staff change its status. Admins get a "new paid order" alert on both channels. Each send is
   recorded in `email_messages` and listed on the admin order page. WhatsApp needs the templates in
   `docs/whatsapp-templates.md` approved first; a channel with no keys set is simply skipped. Check the setup with

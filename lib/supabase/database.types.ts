@@ -20,6 +20,9 @@ export type Database = {
     Tables: {
       audit_logs: {
         Row: {
+          actor_role: string | null
+          entity_label: string | null
+          summary: string | null
           action: string
           actor_id: string | null
           after_data: Json | null
@@ -30,6 +33,9 @@ export type Database = {
           id: string
         }
         Insert: {
+          actor_role?: string | null
+          entity_label?: string | null
+          summary?: string | null
           action: string
           actor_id?: string | null
           after_data?: Json | null
@@ -40,6 +46,9 @@ export type Database = {
           id?: string
         }
         Update: {
+          actor_role?: string | null
+          entity_label?: string | null
+          summary?: string | null
           action?: string
           actor_id?: string | null
           after_data?: Json | null
@@ -816,6 +825,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          tracking_code: string | null
           access_token: string
           contact_email: string | null
           contact_name: string | null
@@ -836,6 +846,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          tracking_code?: string | null
           access_token?: string
           contact_email?: string | null
           contact_name?: string | null
@@ -856,6 +867,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          tracking_code?: string | null
           access_token?: string
           contact_email?: string | null
           contact_name?: string | null
@@ -1415,6 +1427,8 @@ export type Database = {
       }
       shipping_rates: {
         Row: {
+          agent_location: string | null
+          hours: string | null
           amount: number
           created_at: string
           delivery_estimate: string | null
@@ -1425,6 +1439,8 @@ export type Database = {
           shipping_zone_id: string
         }
         Insert: {
+          agent_location?: string | null
+          hours?: string | null
           amount: number
           created_at?: string
           delivery_estimate?: string | null
@@ -1435,6 +1451,8 @@ export type Database = {
           shipping_zone_id: string
         }
         Update: {
+          agent_location?: string | null
+          hours?: string | null
           amount?: number
           created_at?: string
           delivery_estimate?: string | null
@@ -1456,6 +1474,8 @@ export type Database = {
       }
       shipping_zones: {
         Row: {
+          asks_customer_location: boolean
+          courier: string | null
           country_codes: string[]
           created_at: string
           description: string | null
@@ -1466,6 +1486,8 @@ export type Database = {
           sort_order: number
         }
         Insert: {
+          asks_customer_location?: boolean
+          courier?: string | null
           country_codes?: string[]
           created_at?: string
           description?: string | null
@@ -1476,6 +1498,8 @@ export type Database = {
           sort_order?: number
         }
         Update: {
+          asks_customer_location?: boolean
+          courier?: string | null
           country_codes?: string[]
           created_at?: string
           description?: string | null

@@ -40,7 +40,7 @@ export default function AboutPage() {
       <section className="bg-aurum-ivory py-section">
         <div className="container-aurum grid gap-10 lg:grid-cols-2 lg:gap-16">
           <div className="order-2 lg:order-1">
-            <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">01 — Our Story</p>
+            <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">Our Story</p>
             <RevealText as="h2" text="Founded on a hand." className="font-display text-4xl sm:text-5xl" />
             <FadeIn delay={0.3}>
               <p className="mt-6 max-w-md text-sm leading-relaxed text-aurum-obsidian/70 sm:text-base">
@@ -65,7 +65,7 @@ export default function AboutPage() {
       {/* Made in Kenya — asymmetric collage */}
       <section className="bg-aurum-sand/25 py-section">
         <div className="container-aurum">
-          <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">02 — Made in Kenya</p>
+          <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">Made in Kenya</p>
           <RevealText as="h2" text="A Kenyan point of view." className="max-w-2xl font-display text-4xl sm:text-5xl" />
           <FadeIn delay={0.3}>
             <p className="mt-6 max-w-xl text-sm leading-relaxed text-aurum-obsidian/70 sm:text-base">
@@ -102,7 +102,7 @@ export default function AboutPage() {
             />
           </ImageReveal>
           <div>
-            <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">03 — Craft</p>
+            <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">Craft</p>
             <RevealText as="h2" text="Slow, deliberate, worn daily." className="font-display text-4xl sm:text-5xl" />
             <FadeIn delay={0.3}>
               <p className="mt-6 max-w-md text-sm leading-relaxed text-aurum-obsidian/70 sm:text-base">
@@ -118,7 +118,7 @@ export default function AboutPage() {
       {/* The Aurum Philosophy — statement break */}
       <section className="bg-aurum-obsidian py-section-lg text-aurum-ivory">
         <div className="container-aurum text-center">
-          <p className="mb-4 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">04 — The Aurum Philosophy</p>
+          <p className="mb-4 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">The Aurum Philosophy</p>
           <RevealText
             as="h2"
             text="Heritage worn forward, not behind."
@@ -131,7 +131,7 @@ export default function AboutPage() {
       <section className="bg-aurum-ivory py-section">
         <div className="container-aurum grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
           <div>
-            <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">05 — Our Community</p>
+            <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">Our Community</p>
             <RevealText as="h2" text="Made for the people who wear it." className="font-display text-4xl sm:text-5xl" />
             <FadeIn delay={0.3}>
               <p className="mt-6 max-w-md text-sm leading-relaxed text-aurum-obsidian/70 sm:text-base">
@@ -172,7 +172,7 @@ export default function AboutPage() {
           <EditorialImage image={SITE_IMAGES.aboutFinalCta} className="h-full w-full" />
         </div>
         <div className="container-aurum relative z-10 text-center">
-          <p className="mb-4 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">06 — Begin</p>
+          <p className="mb-4 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">Begin</p>
           <RevealText
             as="h2"
             text="Discover Aurum."

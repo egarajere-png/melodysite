@@ -11,7 +11,7 @@ export function EditorialStory() {
 
       <div className="container-aurum relative z-10 flex h-full items-center">
         <div className="max-w-lg">
-          <p className="mb-4 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">05 — Philosophy</p>
+          <p className="mb-4 text-xs uppercase tracking-[0.3em] text-aurum-ivory/50">Philosophy</p>
           <RevealText
             as="h2"
             text="More than jewellery."

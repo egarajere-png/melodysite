@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { RevealText } from "@/components/motion/RevealText";
 import { FadeIn } from "@/components/motion/FadeIn";
 import { ContactForm } from "@/components/contact/ContactForm";
+import { CONTACT, WHATSAPP_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -28,25 +29,31 @@ export default function ContactPage() {
             </div>
             <div>
               <p className="mb-1 text-xs uppercase tracking-widest text-aurum-obsidian/50">Email</p>
-              <a href="mailto:hello@aurumentonet.co.ke" className="hover:underline">
-                hello@aurumentonet.co.ke
+              <a href={`mailto:${CONTACT.email}`} className="hover:underline">
+                {CONTACT.email}
               </a>
             </div>
             <div>
               <p className="mb-1 text-xs uppercase tracking-widest text-aurum-obsidian/50">WhatsApp</p>
               <a
-                href="https://wa.me/254700000000"
+                href={WHATSAPP_URL}
                 target="_blank"
                 rel="noreferrer"
                 className="hover:underline"
               >
-                +254 700 000 000
+                {CONTACT.whatsappDisplay}
               </a>
             </div>
             <div>
               <p className="mb-1 text-xs uppercase tracking-widest text-aurum-obsidian/50">Instagram</p>
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hover:underline">
-                @aurumentonet
+              <a href={CONTACT.instagram} target="_blank" rel="noreferrer" className="hover:underline">
+                {CONTACT.handle}
+              </a>
+            </div>
+            <div>
+              <p className="mb-1 text-xs uppercase tracking-widest text-aurum-obsidian/50">TikTok</p>
+              <a href={CONTACT.tiktok} target="_blank" rel="noreferrer" className="hover:underline">
+                {CONTACT.handle}
               </a>
             </div>
           </div>

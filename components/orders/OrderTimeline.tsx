@@ -11,6 +11,7 @@ const DELIVERY_STEPS: OrderStatus[] = [
   "IN_TRANSIT",
   "DELIVERED",
   "COMPLETED",
+  
 ];
 const COLLECTION_STEPS: OrderStatus[] = ["PAYMENT_PENDING", "PAYMENT_CONFIRMED", "PROCESSING", "READY_FOR_COLLECTION", "COMPLETED"];
 
@@ -32,9 +33,9 @@ const STEP_DESCRIPTIONS: Record<OrderStatus, string> = {
   PAYMENT_CONFIRMED: "Payment confirmed — your order is queued for production.",
   PROCESSING: "Your piece is being finished and quality-checked.",
   READY_FOR_COLLECTION: "Available for pickup at our studio.",
-  DISPATCHED: "Handed to our courier.",
-  IN_TRANSIT: "On its way to you.",
-  DELIVERED: "Delivered to your address.",
+  DISPATCHED: "Handed to Pick Up Mtaani.",
+  IN_TRANSIT: "On its way to your Pick Up Mtaani agent.",
+  DELIVERED: "At your Pick Up Mtaani agent, ready to collect.",
   COMPLETED: "Enjoy your piece.",
   CANCELLED: "This order was cancelled.",
   REFUNDED: "This order was refunded.",

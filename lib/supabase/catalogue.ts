@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { cache } from "react";
 import { createPublicClient } from "@/lib/supabase/public";
 import { storedImageRef } from "@/lib/product-media";
 import type { Category, CategorySlug, CollectionSummary, Deal, ImageRef, Product, ProductVariant } from "@/lib/types";
@@ -301,7 +302,8 @@ export async function getMaterialFinishes(): Promise<{ slug: string; name: strin
   return data ?? [];
 }
 
-export async function getActiveDeal(): Promise<Deal | null> {
+/** Looked up once per request, however many products or bag lines ask for it. */
+export const getActiveDeal = cache(async function getActiveDeal(): Promise<Deal | null> {
   const supabase = createPublicClient();
   const nowIso = new Date().toISOString();
   const { data, error } = await supabase
@@ -324,4 +326,4 @@ export async function getActiveDeal(): Promise<Deal | null> {
     endsAt: data.ends_at,
     active: data.is_active,
   };
-}
+});

@@ -33,8 +33,8 @@ const customerSample = {
   firstName: "Wanjiru",
   orderNumber: "AE-9016FBAB",
   total: "Ksh 4,500",
-  destination: "Madaraka Primary School, Langata",
-  orderUrl: "https://aurumentonet.co.ke/orders/AE-9016FBAB",
+  destination: "Bleu Topaz, Kahawa Sukari, Baringo Road (Pick Up Mtaani code PM-123456)",
+  orderUrl: "https://aurumentonet.com/orders/AE-9016FBAB",
 };
 const adminSample = {
   orderNumber: "AE-9016FBAB",
@@ -43,8 +43,8 @@ const adminSample = {
   total: "Ksh 4,500",
   receipt: "SJ12ABCDEF",
   items: "Maasai Collar (Gold) x1, Beaded Cuff (Red) x2",
-  fulfilment: "Delivery to Madaraka Primary School, Langata",
-  adminUrl: "https://aurumentonet.co.ke/admin/orders/AE-9016FBAB",
+  fulfilment: "Delivery to Bleu Topaz, Kahawa Sukari, Baringo Road (Pick Up Mtaani code PM-123456)",
+  adminUrl: "https://aurumentonet.com/admin/orders/AE-9016FBAB",
 };
 const wanted = [
   ...Object.values(CUSTOMER_MESSAGES).map((definition) => ({ definition, samples: definition.params(customerSample) })),

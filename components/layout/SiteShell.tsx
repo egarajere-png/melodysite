@@ -58,7 +58,7 @@ export function SiteShell({
       <WishlistProvider isAuthenticated={isAuthenticated} initialProductIds={initialWishlistIds}>
         <Preloader />
         <CustomCursor />
-        <Navbar onOpenMenu={() => setMenuOpen(true)} categories={categories} account={account} />
+        <Navbar onOpenMenu={() => setMenuOpen(true)} account={account} />
         <MenuOverlay open={menuOpen} onClose={() => setMenuOpen(false)} categories={categories} />
         <CartDrawer />
         <WishlistSignInPrompt />

@@ -8,11 +8,34 @@ import { deleteProductAction } from "@/app/actions/admin-products";
 import { useToast } from "@/components/admin/Toast";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import type { AdminProductListItem } from "@/lib/supabase/products-admin";
+import { Pagination, pageOf } from "@/components/admin/Pagination";
+
+type StockFilter = "all" | "in" | "low" | "out" | "archived";
+
+const STOCK_FILTERS: { value: StockFilter; label: string }[] = [
+  { value: "all", label: "Any stock" },
+  { value: "in", label: "In stock (6+)" },
+  { value: "low", label: "Low stock (1–5)" },
+  { value: "out", label: "Out of stock" },
+  { value: "archived", label: "Archived" },
+];
+
+/** The same buckets as the status badge in each row. */
+function stockBucket(p: AdminProductListItem): StockFilter {
+  if (!p.isActive) return "archived";
+  if (p.totalStock === 0) return "out";
+  return p.totalStock <= 5 ? "low" : "in";
+}
+
+const control = "border border-aurum-obsidian/15 bg-white px-3 py-2.5 text-sm";
 
 export function AdminProductsTable({ products: initial }: { products: AdminProductListItem[] }) {
   const toast = useToast();
   const [products, setProducts] = useState(initial);
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("all");
+  const [stock, setStock] = useState<StockFilter>("all");
+  const [page, setPage] = useState(1);
   const [pendingDelete, setPendingDelete] = useState<AdminProductListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -36,11 +59,19 @@ export function AdminProductsTable({ products: initial }: { products: AdminProdu
     }
   }
 
+  const categories = useMemo(() => [...new Set(products.map((p) => p.categoryName))].sort(), [products]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter((p) => p.name.toLowerCase().includes(q) || p.categoryName.toLowerCase().includes(q));
-  }, [query, products]);
+    return products.filter(
+      (p) =>
+        (category === "all" || p.categoryName === category) &&
+        (stock === "all" || stockBucket(p) === stock) &&
+        (!q || p.name.toLowerCase().includes(q) || p.categoryName.toLowerCase().includes(q) || p.skus.some((sku) => sku.toLowerCase().includes(q)))
+    );
+  }, [query, category, stock, products]);
+  const shown = pageOf(filtered, page);
+  const filtering = Boolean(query.trim()) || category !== "all" || stock !== "all";
 
   return (
     <div>
@@ -55,14 +86,42 @@ export function AdminProductsTable({ products: initial }: { products: AdminProdu
         </Link>
       </div>
 
-      <div className="mb-6 flex items-center gap-2 border border-aurum-obsidian/15 bg-white px-4 py-3 text-sm sm:max-w-sm">
-        <Search size={16} strokeWidth={1.5} className="text-aurum-obsidian/40" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search products…"
-          className="w-full bg-transparent focus-visible:outline-none"
-        />
+      {/* Changing any filter goes back to the first page. */}
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2 border border-aurum-obsidian/15 bg-white px-4 py-2.5 text-sm sm:max-w-sm">
+          <Search size={16} strokeWidth={1.5} className="shrink-0 text-aurum-obsidian/40" />
+          <input
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+            placeholder="Search name, category or SKU…"
+            aria-label="Search products"
+            className="w-full bg-transparent focus-visible:outline-none"
+          />
+        </div>
+        <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }} aria-label="Category" className={control}>
+          <option value="all">All categories</option>
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <select value={stock} onChange={(e) => { setStock(e.target.value as StockFilter); setPage(1); }} aria-label="Stock" className={control}>
+          {STOCK_FILTERS.map((f) => (
+            <option key={f.value} value={f.value}>
+              {f.label}
+            </option>
+          ))}
+        </select>
+        {filtering && (
+          <button
+            type="button"
+            onClick={() => { setQuery(""); setCategory("all"); setStock("all"); setPage(1); }}
+            className="text-xs uppercase tracking-widest text-aurum-obsidian/60 underline-offset-4 hover:underline"
+          >
+            Clear
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto border border-aurum-obsidian/10 bg-white">
@@ -81,11 +140,11 @@ export function AdminProductsTable({ products: initial }: { products: AdminProdu
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-aurum-obsidian/50">
-                  No products match that search.
+                  {filtering ? "No products match those filters." : "No products yet."}
                 </td>
               </tr>
             ) : (
-              filtered.map((p) => (
+              shown.rows.map((p) => (
                 <tr key={p.id} className="border-b border-aurum-obsidian/5 last:border-0 hover:bg-aurum-ivory/60">
                   <td className="px-4 py-3">
                     <Link href={`/admin/products/${p.id}`} className="font-medium hover:underline">
@@ -137,6 +196,8 @@ export function AdminProductsTable({ products: initial }: { products: AdminProdu
           </tbody>
         </table>
       </div>
+
+      <Pagination page={shown.page} pages={shown.pages} total={filtered.length} noun="products" onChange={setPage} />
 
       <ConfirmDialog
         open={pendingDelete !== null}

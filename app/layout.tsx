@@ -8,8 +8,9 @@ import { getWishlistProductIds } from "@/lib/supabase/wishlist";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { preloaderSkipScript } from "@/lib/preloader";
+import { SITE_URL } from "@/lib/site";
 
-const siteUrl = "https://aurumentonet.co.ke";
+const siteUrl = SITE_URL;
 
 // Every page shares this layout's nav (live categories), cart and wishlist — all
 // read live from Supabase with no-store caching (see lib/supabase/public.ts), so

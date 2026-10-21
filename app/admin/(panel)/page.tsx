@@ -4,9 +4,12 @@ import { StatTile } from "@/components/admin/StatTile";
 import { RevenueChart } from "@/components/admin/RevenueChart";
 import { getDashboardMetrics, getMonthlySeries, getTopProducts } from "@/lib/supabase/analytics";
 import { formatKES } from "@/lib/format";
+import { getStaffSession } from "@/lib/supabase/staff-auth";
 
 export default async function AdminDashboardPage() {
-  const [metrics, monthly, topProducts] = await Promise.all([getDashboardMetrics(), getMonthlySeries(), getTopProducts(5)]);
+  const [metrics, monthly, topProducts, staff] = await Promise.all([getDashboardMetrics(), getMonthlySeries(), getTopProducts(5), getStaffSession()]);
+  // Sales and profit figures are for administrators; assistants see the operational tiles.
+  const showMoney = staff?.role === "ADMIN";
 
   return (
     <div>
@@ -17,21 +20,23 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <StatTile label="Total Revenue" value={formatKES(metrics.totalRevenue)} icon={DollarSign} />
+        {showMoney && <StatTile label="Total Revenue" value={formatKES(metrics.totalRevenue)} icon={DollarSign} />}
         <StatTile label="Total Orders" value={String(metrics.totalOrders)} icon={ShoppingBag} />
         <StatTile label="Items Sold" value={String(metrics.itemsSold)} icon={Package} />
-        <StatTile label="Profit" value={formatKES(metrics.profit)} icon={TrendingUp} />
-        <StatTile label="Avg. Order Value" value={formatKES(metrics.averageOrderValue)} icon={Gauge} />
+        {showMoney && <StatTile label="Profit" value={formatKES(metrics.profit)} icon={TrendingUp} />}
+        {showMoney && <StatTile label="Avg. Order Value" value={formatKES(metrics.averageOrderValue)} icon={Gauge} />}
         <StatTile label="Pending Orders" value={String(metrics.pendingOrders)} icon={Clock} tone={metrics.pendingOrders > 0 ? "warning" : "default"} />
         <StatTile label="Low Stock" value={String(metrics.lowStock.length)} icon={AlertTriangle} tone={metrics.lowStock.length > 0 ? "warning" : "default"} />
         <StatTile label="Out of Stock" value={String(metrics.outOfStock.length)} icon={XCircle} tone={metrics.outOfStock.length > 0 ? "danger" : "default"} />
       </div>
 
-      <div className="mt-10 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-        <div className="border border-aurum-obsidian/10 bg-white p-5">
-          <h2 className="mb-4 text-sm uppercase tracking-widest text-aurum-obsidian/50">Monthly Sales</h2>
-          <RevenueChart data={monthly} />
-        </div>
+      <div className={`mt-10 grid gap-6 ${showMoney ? "lg:grid-cols-[1.4fr_1fr]" : ""}`}>
+        {showMoney && (
+          <div className="border border-aurum-obsidian/10 bg-white p-5">
+            <h2 className="mb-4 text-sm uppercase tracking-widest text-aurum-obsidian/50">Monthly Sales</h2>
+            <RevenueChart data={monthly} />
+          </div>
+        )}
 
         <div className="border border-aurum-obsidian/10 bg-white p-5">
           <h2 className="mb-4 text-sm uppercase tracking-widest text-aurum-obsidian/50">Bestsellers</h2>
@@ -45,8 +50,8 @@ export default async function AdminDashboardPage() {
                   <span>{p.name}</span>
                 </div>
                 <div className="text-right">
-                  <p>{formatKES(p.revenue)}</p>
-                  <p className="text-xs text-aurum-obsidian/40">{p.quantity} sold</p>
+                  {showMoney && <p>{formatKES(p.revenue)}</p>}
+                  <p className={showMoney ? "text-xs text-aurum-obsidian/40" : ""}>{p.quantity} sold</p>
                 </div>
               </li>
             ))}

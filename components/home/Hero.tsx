@@ -72,9 +72,6 @@ export function Hero() {
             </FadeIn>
           </div>
 
-          <FadeIn delay={details} duration={duration} className="absolute bottom-8 left-6 hidden text-[10px] uppercase tracking-[0.3em] text-aurum-ivory/40 sm:block sm:left-[var(--gutter)]">
-            01 — Arrival
-          </FadeIn>
           <FadeIn delay={details} duration={duration} className="absolute bottom-8 right-6 hidden text-[10px] uppercase tracking-[0.3em] text-aurum-ivory/50 sm:block sm:right-[var(--gutter)]">
             Scroll
           </FadeIn>

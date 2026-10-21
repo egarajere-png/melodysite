@@ -2,7 +2,7 @@
 
 import { FormEvent, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, CreditCard, MapPin, Search, Smartphone, Store, Truck } from "lucide-react";
+import { Check, Clock, CreditCard, MapPin, Package, Search, Smartphone, Store } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { EditorialImage } from "@/components/ui/EditorialImage";
 import { formatKES } from "@/lib/format";
@@ -11,7 +11,7 @@ import { createOrderAction } from "@/app/actions/checkout";
 import { startMpesaPaymentAction } from "@/app/actions/payments";
 import { MpesaPayment } from "@/components/checkout/MpesaPayment";
 import { isPlausibleEmail, isPlausiblePhone } from "@/lib/delivery";
-import type { DeliveryOptions } from "@/lib/supabase/shipping";
+import type { DeliveryArea, DeliveryGroup, DeliveryOptions } from "@/lib/supabase/shipping";
 import type { CheckoutPrefill } from "@/lib/supabase/orders";
 import type { MpesaPaymentView } from "@/lib/supabase/payments";
 
@@ -22,8 +22,9 @@ const fieldLabel = "block text-[11px] uppercase tracking-widest text-aurum-obsid
 type Stage = "form" | "placing" | "awaiting-payment";
 type FieldErrors = Partial<Record<"name" | "email" | "phone" | "group" | "area" | "location" | "recipientName" | "recipientPhone" | "pickup" | "mpesaPhone", string>>;
 
-function rangeLabel(min: number, max: number) {
-  return min === max ? formatKES(min) : `${formatKES(min)} – ${formatKES(max)}`;
+/** An agent matches a search on its name, its address or its location's name. */
+function matchesQuery(group: DeliveryGroup, area: DeliveryArea, query: string) {
+  return [group.name, group.description, area.name, area.agentLocation].some((v) => v?.toLowerCase().includes(query));
 }
 
 /** A selectable card with an unmistakable selected state (dark border, tint, tick). */
@@ -106,9 +107,8 @@ export function CheckoutClient({
   const [groupId, setGroupId] = useState<string | null>(prefillGroup?.id ?? (groups.length === 1 ? groups[0].id : null));
   const [areaId, setAreaId] = useState<string | null>(prefillGroup ? prefill.areaId : null);
   const [areaQuery, setAreaQuery] = useState("");
-  const [location, setLocation] = useState(prefillGroup ? (prefill.delivery?.location ?? "") : "");
-  const [addressDetails, setAddressDetails] = useState(prefillGroup ? (prefill.delivery?.address_details ?? "") : "");
-  const [instructions, setInstructions] = useState("");
+  // Only typed for a town outside Nairobi; a Nairobi agent is itself the collection point.
+  const [location, setLocation] = useState(prefillGroup?.asksCustomerLocation ? (prefill.delivery?.location ?? "") : "");
   const [forSomeoneElse, setForSomeoneElse] = useState(false);
   const [recipientName, setRecipientName] = useState("");
   const [recipientPhone, setRecipientPhone] = useState("");
@@ -132,8 +132,12 @@ export function CheckoutClient({
   const mpesaPhone = mpesaPhoneEdit ?? phone;
   const cheapestDelivery = canDeliver ? Math.min(...groups.map((g) => g.minAmount)) : 0;
 
+  const needsLocation = Boolean(group && area && (group.asksCustomerLocation || !area.agentLocation));
+  // Searching looks across every location at once; otherwise the chosen location's agents.
   const areaFilter = areaQuery.trim().toLowerCase();
-  const visibleAreas = !group ? [] : areaFilter ? group.areas.filter((a) => a.name.toLowerCase().includes(areaFilter)) : group.areas;
+  const searchResults = areaFilter
+    ? groups.flatMap((g) => g.areas.filter((a) => matchesQuery(g, a, areaFilter)).map((a) => ({ group: g, area: a })))
+    : [];
 
   if (lines.length === 0 && stage === "form") {
     return (
@@ -146,10 +150,13 @@ export function CheckoutClient({
     );
   }
 
-  /** Drop a field's error as soon as the buyer fixes it (and the banner once none remain). */
-  function clearError(key: keyof FieldErrors) {
-    if (!errors[key]) return;
-    const next = { ...errors, [key]: undefined };
+  /** Drop fields' errors as soon as the buyer fixes them (and the banner once none remain).
+   * Takes several keys so one choice can clear them together — separate calls in the
+   * same event would each start from the same stale `errors` and undo one another. */
+  function clearError(...keys: (keyof FieldErrors)[]) {
+    if (!keys.some((key) => errors[key])) return;
+    const next = { ...errors };
+    for (const key of keys) next[key] = undefined;
     setErrors(next);
     if (!Object.values(next).some(Boolean)) setFormError(null);
   }
@@ -158,8 +165,17 @@ export function CheckoutClient({
     if (id === groupId) return;
     setGroupId(id);
     setAreaId(null);
+    setLocation("");
+    clearError("group", "area", "location");
+  }
+
+  function chooseArea(g: DeliveryGroup, a: DeliveryArea) {
+    if (g.id !== groupId) setLocation("");
+    setGroupId(g.id);
+    setAreaId(a.id);
     setAreaQuery("");
-    clearError("group");
+    // A different agent may not need a typed location, so its old error goes too.
+    clearError("group", "area", "location");
   }
 
   function validate(): FieldErrors {
@@ -168,12 +184,12 @@ export function CheckoutClient({
     if (!isPlausibleEmail(email)) next.email = "Enter a valid email — your order updates go here.";
     if (!isPlausiblePhone(phone)) next.phone = "Enter a valid phone number, e.g. 0712 345 678.";
     if (fulfilment === "delivery") {
-      if (!group) next.group = "Choose where we're delivering to.";
-      else if (!area) next.area = `Choose your area in ${group.name}.`;
-      if (!location.trim()) next.location = "Tell us the exact place or a nearby landmark.";
+      if (!group) next.group = "Choose the Pick Up Mtaani agent nearest you.";
+      else if (!area) next.area = group.asksCustomerLocation ? "Choose your town." : `Choose an agent in ${group.name}.`;
+      if (needsLocation && !location.trim()) next.location = `Tell us where in ${area?.name ?? "town"} you'd like to collect.`;
       if (forSomeoneElse) {
-        if (!recipientName.trim()) next.recipientName = "Enter the recipient's name.";
-        if (!isPlausiblePhone(recipientPhone)) next.recipientPhone = "Enter the recipient's phone number.";
+        if (!recipientName.trim()) next.recipientName = "Enter the name of the person collecting.";
+        if (!isPlausiblePhone(recipientPhone)) next.recipientPhone = "Enter their phone number.";
       }
     } else if (!pickup) {
       next.pickup = "Choose a pickup point.";
@@ -203,9 +219,7 @@ export function CheckoutClient({
         fulfilment === "delivery" && area
           ? {
               areaId: area.id,
-              location,
-              addressDetails,
-              instructions,
+              location: needsLocation ? location : undefined,
               recipientName: forSomeoneElse ? recipientName : fullName,
               recipientPhone: forSomeoneElse ? recipientPhone : phone,
             }
@@ -250,7 +264,7 @@ export function CheckoutClient({
   const selectionSummary =
     fulfilment === "delivery"
       ? group && area
-        ? `Delivery to ${group.name} — ${area.name} · ${formatKES(area.amount)}`
+        ? `Pick Up Mtaani · ${area.name}, ${group.name} · ${formatKES(area.amount)}`
         : null
       : pickup
         ? `Pickup from ${pickup.name} · Free`
@@ -263,7 +277,7 @@ export function CheckoutClient({
           {/* 1. Contact */}
           <section>
             <h2 className="mb-1 font-display text-2xl">1. Contact</h2>
-            <p className="mb-5 text-sm text-aurum-obsidian/55">We&apos;ll send your order confirmation and delivery updates by email and WhatsApp.</p>
+            <p className="mb-5 text-sm text-aurum-obsidian/55">We&apos;ll send your order confirmation, tracking code and delivery updates by email and WhatsApp.</p>
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label htmlFor="co-name" className={fieldLabel}>Full name</label>
@@ -289,15 +303,15 @@ export function CheckoutClient({
             <div role="radiogroup" aria-label="Delivery or pickup" className="grid gap-3 sm:grid-cols-2">
               {canDeliver && (
                 <ChoiceCard selected={fulfilment === "delivery"} onSelect={() => setFulfilment("delivery")} className="p-5 pr-10">
-                  <Truck size={20} strokeWidth={1.5} className="mb-3 text-aurum-obsidian/60" />
-                  <p className="text-sm font-medium uppercase tracking-widest">Delivery</p>
-                  <p className="mt-1 text-sm text-aurum-obsidian/60">From {formatKES(cheapestDelivery)}, based on your area</p>
+                  <Package size={20} strokeWidth={1.5} className="mb-3 text-aurum-obsidian/60" />
+                  <p className="text-sm font-medium uppercase tracking-widest">Pick Up Mtaani</p>
+                  <p className="mt-1 text-sm text-aurum-obsidian/60">Collect from an agent near you · from {formatKES(cheapestDelivery)}</p>
                 </ChoiceCard>
               )}
               {canPickup && (
                 <ChoiceCard selected={fulfilment === "collection"} onSelect={() => setFulfilment("collection")} className="p-5 pr-10">
                   <Store size={20} strokeWidth={1.5} className="mb-3 text-aurum-obsidian/60" />
-                  <p className="text-sm font-medium uppercase tracking-widest">Pickup · Free</p>
+                  <p className="text-sm font-medium uppercase tracking-widest">Shop pickup · Free</p>
                   <p className="mt-1 text-sm text-aurum-obsidian/60">{pickupLocations.length === 1 ? `Collect from ${pickupLocations[0].name}` : "Collect from one of our pickup points"}</p>
                 </ChoiceCard>
               )}
@@ -305,86 +319,101 @@ export function CheckoutClient({
 
             {fulfilment === "delivery" ? (
               <div className="mt-8 flex flex-col gap-8">
-                {/* Group */}
-                <div data-error={Boolean(errors.group)}>
-                  <p className={`${fieldLabel} mb-3`}>Where are we delivering?</p>
-                  <div role="radiogroup" aria-label="Delivery region" className="grid gap-3 sm:grid-cols-2">
-                    {groups.map((g) => (
-                      <ChoiceCard key={g.id} selected={groupId === g.id} onSelect={() => chooseGroup(g.id)} className="px-4 py-3.5 pr-10">
-                        <p className="font-display text-lg leading-tight">{g.name}</p>
-                        {g.description && <p className="mt-0.5 text-xs text-aurum-obsidian/55">{g.description}</p>}
-                        <p className="mt-1.5 text-xs uppercase tracking-widest text-aurum-obsidian/60">{rangeLabel(g.minAmount, g.maxAmount)}</p>
-                      </ChoiceCard>
-                    ))}
+                <p className="text-sm text-aurum-obsidian/60">
+                  We send your order through <strong className="font-medium text-aurum-obsidian">Pick Up Mtaani</strong>. Choose the agent nearest you — we&apos;ll book the parcel, send you its tracking code, and Pick Up Mtaani will SMS you when it&apos;s on its way.
+                </p>
+
+                {/* Agent: search across every location, or browse one location */}
+                <div data-error={Boolean(errors.group || errors.area)}>
+                  <p className={`${fieldLabel} mb-3`}>Find your nearest agent</p>
+                  <div className="mb-4 flex items-center gap-2 border-b border-aurum-obsidian/25 py-2">
+                    <Search size={15} strokeWidth={1.5} className="text-aurum-obsidian/40" />
+                    <input
+                      value={areaQuery}
+                      onChange={(e) => setAreaQuery(e.target.value)}
+                      placeholder="Search your area or estate, e.g. Kahawa, Westlands, Rongai"
+                      aria-label="Search Pick Up Mtaani agents"
+                      className="w-full bg-transparent text-sm focus-visible:outline-none"
+                    />
                   </div>
-                  <FieldError id="co-group-err" message={errors.group} />
+
+                  {areaFilter ? (
+                    <div role="radiogroup" aria-label="Matching agents" className="flex max-h-96 flex-col gap-2 overflow-y-auto pr-1">
+                      {searchResults.map(({ group: g, area: a }) => (
+                        <AgentCard key={a.id} group={g} area={a} showGroup selected={areaId === a.id} onSelect={() => chooseArea(g, a)} />
+                      ))}
+                      {searchResults.length === 0 && (
+                        <p className="py-3 text-sm text-aurum-obsidian/50">
+                          No agents match &ldquo;{areaQuery}&rdquo;. Try a nearby estate, or choose &ldquo;Outside Nairobi&rdquo; below.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <>
+                      <div role="radiogroup" aria-label="Pick Up Mtaani location" className="flex flex-wrap gap-2">
+                        {groups.map((g) => (
+                          <button
+                            key={g.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={groupId === g.id}
+                            onClick={() => chooseGroup(g.id)}
+                            className={`border px-3 py-2 text-xs uppercase tracking-widest transition-colors ${
+                              groupId === g.id ? "border-aurum-obsidian bg-aurum-obsidian text-aurum-ivory" : "border-aurum-obsidian/20 hover:border-aurum-obsidian/50"
+                            }`}
+                          >
+                            {g.name}
+                          </button>
+                        ))}
+                      </div>
+                      {group && (
+                        <div className="mt-5">
+                          <p className={`${fieldLabel} mb-3`}>{group.asksCustomerLocation ? "Your town" : `Agents in ${group.name}`}</p>
+                          <div role="radiogroup" aria-label={`Agents in ${group.name}`} className="flex max-h-96 flex-col gap-2 overflow-y-auto pr-1">
+                            {group.areas.map((a) => (
+                              <AgentCard key={a.id} group={group} area={a} selected={areaId === a.id} onSelect={() => chooseArea(group, a)} />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <FieldError id="co-group-err" message={errors.group ?? errors.area} />
                 </div>
 
-                {/* Area */}
-                {group && (
-                  <div data-error={Boolean(errors.area)}>
-                    <p className={`${fieldLabel} mb-3`}>Your area in {group.name}</p>
-                    {group.areas.length > 8 && (
-                      <div className="mb-3 flex items-center gap-2 border-b border-aurum-obsidian/25 py-2">
-                        <Search size={15} strokeWidth={1.5} className="text-aurum-obsidian/40" />
-                        <input value={areaQuery} onChange={(e) => setAreaQuery(e.target.value)} placeholder={`Search areas in ${group.name}…`} aria-label={`Search areas in ${group.name}`} className="w-full bg-transparent text-sm focus-visible:outline-none" />
-                      </div>
-                    )}
-                    <div role="radiogroup" aria-label={`Area in ${group.name}`} className="flex max-h-80 flex-col gap-2 overflow-y-auto pr-1">
-                      {visibleAreas.map((a) => (
-                        <ChoiceCard key={a.id} selected={areaId === a.id} onSelect={() => { setAreaId(a.id); clearError("area"); }} className="flex items-center justify-between gap-4 py-3 pl-4 pr-12">
-                          <span className="min-w-0">
-                            <span className="block text-sm">{a.name}</span>
-                            {a.deliveryEstimate && <span className="block text-xs text-aurum-obsidian/50">{a.deliveryEstimate}</span>}
-                          </span>
-                          <span className="shrink-0 text-sm font-medium">{formatKES(a.amount)}</span>
-                        </ChoiceCard>
-                      ))}
-                      {visibleAreas.length === 0 && <p className="py-3 text-sm text-aurum-obsidian/50">No areas match &ldquo;{areaQuery}&rdquo;.</p>}
-                    </div>
-                    <FieldError id="co-area-err" message={errors.area} />
-                  </div>
-                )}
-
-                {/* Exact location */}
                 {area && (
                   <div className="flex flex-col gap-6">
-                    <div>
-                      <label htmlFor="co-location" className={fieldLabel}>Exact location or landmark</label>
-                      <input
-                        id="co-location"
-                        value={location}
-                        onChange={(e) => { setLocation(e.target.value); clearError("location"); }}
-                        placeholder={`e.g. Madaraka Primary School, ${area.name}`}
-                        aria-invalid={Boolean(errors.location)}
-                        aria-describedby="co-location-err"
-                        className={inputClasses}
-                      />
-                      <FieldError id="co-location-err" message={errors.location} />
-                    </div>
-                    <div className="grid gap-6 sm:grid-cols-2">
+                    {needsLocation && (
                       <div>
-                        <label htmlFor="co-address" className={fieldLabel}>Building, house or street (optional)</label>
-                        <input id="co-address" value={addressDetails} onChange={(e) => setAddressDetails(e.target.value)} placeholder="e.g. Block C, House 12" className={inputClasses} />
+                        <label htmlFor="co-location" className={fieldLabel}>
+                          {area.agentLocation ? `Where in ${area.name} would you like to collect?` : "Your town, and where you'd like to collect"}
+                        </label>
+                        <input
+                          id="co-location"
+                          value={location}
+                          onChange={(e) => { setLocation(e.target.value); clearError("location"); }}
+                          placeholder={area.name === "Other town" ? "e.g. Eldoret — Pick Up Mtaani agent near the stage" : `e.g. ${area.name} town centre, or a Pick Up Mtaani agent you know`}
+                          aria-invalid={Boolean(errors.location)}
+                          aria-describedby="co-location-err"
+                          className={inputClasses}
+                        />
+                        <FieldError id="co-location-err" message={errors.location} />
+                        <p className="mt-2 text-xs text-aurum-obsidian/50">We&apos;ll confirm the exact collection point with you on WhatsApp before sending.</p>
                       </div>
-                      <div>
-                        <label htmlFor="co-instructions" className={fieldLabel}>Delivery instructions (optional)</label>
-                        <input id="co-instructions" value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="e.g. Call when at the gate" className={inputClasses} />
-                      </div>
-                    </div>
+                    )}
                     <label className="flex w-fit cursor-pointer items-center gap-2 text-sm">
                       <input type="checkbox" checked={forSomeoneElse} onChange={(e) => setForSomeoneElse(e.target.checked)} className="accent-aurum-deep" />
-                      Someone else will receive this order
+                      Someone else will collect this order
                     </label>
                     {forSomeoneElse && (
                       <div className="grid gap-6 sm:grid-cols-2">
                         <div>
-                          <label htmlFor="co-rname" className={fieldLabel}>Recipient&apos;s name</label>
+                          <label htmlFor="co-rname" className={fieldLabel}>Their full name</label>
                           <input id="co-rname" value={recipientName} onChange={(e) => { setRecipientName(e.target.value); clearError("recipientName"); }} aria-invalid={Boolean(errors.recipientName)} aria-describedby="co-rname-err" className={inputClasses} />
                           <FieldError id="co-rname-err" message={errors.recipientName} />
                         </div>
                         <div>
-                          <label htmlFor="co-rphone" className={fieldLabel}>Recipient&apos;s phone</label>
+                          <label htmlFor="co-rphone" className={fieldLabel}>Their phone</label>
                           <input id="co-rphone" type="tel" value={recipientPhone} onChange={(e) => { setRecipientPhone(e.target.value); clearError("recipientPhone"); }} aria-invalid={Boolean(errors.recipientPhone)} aria-describedby="co-rphone-err" className={inputClasses} />
                           <FieldError id="co-rphone-err" message={errors.recipientPhone} />
                         </div>
@@ -509,26 +538,44 @@ export function CheckoutClient({
           </div>
           <div className="flex items-start justify-between gap-4">
             <span className="text-aurum-obsidian/60">
-              {fulfilment === "collection" ? "Pickup" : "Delivery"}
-              {fulfilment === "delivery" && group && area && <span className="block text-xs text-aurum-obsidian/45">{group.name} — {area.name}</span>}
+              {fulfilment === "collection" ? "Pickup" : "Pick Up Mtaani"}
+              {fulfilment === "delivery" && group && area && <span className="block text-xs text-aurum-obsidian/45">{area.name}, {group.name}</span>}
               {fulfilment === "collection" && pickup && <span className="block text-xs text-aurum-obsidian/45">{pickup.name}</span>}
             </span>
-            <span className="shrink-0">{fulfilment === "collection" ? "Free" : area ? formatKES(shippingTotal) : "Choose area"}</span>
+            <span className="shrink-0">{fulfilment === "collection" ? "Free" : area ? formatKES(shippingTotal) : "Choose agent"}</span>
           </div>
           <div className="flex items-center justify-between border-t border-[var(--border-subtle)] pt-2 font-display text-lg">
             <span>Total</span>
             <span>{formatKES(total)}</span>
           </div>
         </div>
-        {fulfilment === "delivery" && area && location.trim() && (
+        {fulfilment === "delivery" && area && (area.agentLocation || location.trim()) && (
           <p className="mt-4 flex gap-2 border-t border-[var(--border-subtle)] pt-4 text-xs text-aurum-obsidian/60">
             <MapPin size={14} strokeWidth={1.5} className="shrink-0" />
-            <span>
-              Delivering to {location.trim()}, {area.name}, {group?.name}
-            </span>
+            <span>Collect from {needsLocation ? `${location.trim()}, ${area.name}` : `${area.name}, ${area.agentLocation}`}</span>
           </p>
         )}
       </div>
     </div>
+  );
+}
+
+/** One Pick Up Mtaani agent (or town) with its address, hours and fee. */
+function AgentCard({ group, area, selected, onSelect, showGroup = false }: { group: DeliveryGroup; area: DeliveryArea; selected: boolean; onSelect: () => void; showGroup?: boolean }) {
+  return (
+    <ChoiceCard selected={selected} onSelect={onSelect} className="flex items-start justify-between gap-4 py-3 pl-4 pr-12">
+      <span className="min-w-0">
+        {showGroup && <span className="block text-[10px] uppercase tracking-widest text-aurum-obsidian/45">{group.name}</span>}
+        <span className="block text-sm font-medium">{area.name}</span>
+        {area.agentLocation && <span className="block text-xs text-aurum-obsidian/60">{area.agentLocation}</span>}
+        {(area.hours || area.deliveryEstimate) && (
+          <span className="mt-1 flex items-center gap-1 text-xs text-aurum-obsidian/45">
+            <Clock size={11} strokeWidth={1.5} className="shrink-0" />
+            {[area.hours, area.deliveryEstimate].filter(Boolean).join(" · ")}
+          </span>
+        )}
+      </span>
+      <span className="shrink-0 text-sm font-medium">{formatKES(area.amount)}</span>
+    </ChoiceCard>
   );
 }
