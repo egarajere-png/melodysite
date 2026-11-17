@@ -40,7 +40,7 @@ export function Navbar({ onOpenMenu, account }: { onOpenMenu: () => void; accoun
       data-intro-hold
       style={introStyle}
       className={`fixed inset-x-0 top-0 z-[var(--z-nav)] transition-colors duration-500 ${
-        transparent ? "bg-transparent" : "border-b border-[var(--border-subtle)] bg-aurum-ivory/95 backdrop-blur-sm"
+        transparent ? "bg-transparent" : "paper-surface border-b border-[var(--border-subtle)] bg-aurum-ivory backdrop-blur-sm"
       }`}
     >
       <div

@@ -66,7 +66,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     // suppressHydrationWarning: the head script below may add data-ae-skip before hydration.
-    <html lang="en" className={`${fraunces.variable} ${archivo.variable}`} suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" className={`${fraunces.variable} ${archivo.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: preloaderSkipScript }} />
         <noscript>

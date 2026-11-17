@@ -8,7 +8,7 @@ import { EditorialImage } from "@/components/ui/EditorialImage";
 export async function ShopByCategory() {
   const categories = await getActiveCategories();
   return (
-    <section className="bg-aurum-ivory pb-section">
+    <section className="pb-section">
       <div className="container-aurum">
         <div className="mb-10 flex items-end justify-between gap-4">
           <div>

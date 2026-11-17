@@ -27,7 +27,7 @@ export function CartDrawer() {
             role="dialog"
             aria-modal="true"
             aria-label="Shopping bag"
-            className="fixed right-0 top-0 z-[var(--z-drawer)] flex h-dvh w-full max-w-md flex-col bg-aurum-ivory text-aurum-obsidian shadow-[var(--shadow-float)]"
+            className="paper-surface fixed right-0 top-0 z-[var(--z-drawer)] flex h-dvh w-full max-w-md flex-col bg-aurum-ivory text-aurum-obsidian shadow-[var(--shadow-float)]"
             initial={{ x: "100%" }}
             animate={{ x: 0 }}
             exit={{ x: "100%" }}

@@ -91,7 +91,7 @@ export function UserMenu({ account }: { account: NavAccount | null }) {
             // the panel without leaving the hover area.
             className="absolute -right-3 top-full z-[var(--z-nav)] w-60 pt-3 text-aurum-obsidian"
           >
-            <div className="border border-[var(--border-subtle)] bg-aurum-ivory py-2 shadow-[var(--shadow-float)]">
+            <div className="paper-surface border border-[var(--border-subtle)] bg-aurum-ivory py-2 shadow-[var(--shadow-float)]">
               {account ? (
                 <>
                   <div className="border-b border-[var(--border-subtle)] px-4 pb-3 pt-2">

@@ -32,7 +32,7 @@ const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
 
 export function Footer() {
   return (
-    <footer className="bg-aurum-obsidian text-aurum-ivory">
+    <footer className="paper-ink bg-aurum-deep text-aurum-ivory">
       <div className="container-aurum py-16 sm:py-24">
         <RevealText
           as="h2"

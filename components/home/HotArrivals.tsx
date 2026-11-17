@@ -6,7 +6,7 @@ export async function HotArrivals() {
   const arrivals = await getNewArrivals(8);
 
   return (
-    <section className="border-t border-[var(--border-subtle)] bg-aurum-ivory py-section">
+    <section className="border-t border-[var(--border-subtle)] py-section">
       <div className="container-aurum">
         <div className="mb-10 flex items-end justify-between gap-4">
           <div>

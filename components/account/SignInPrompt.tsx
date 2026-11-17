@@ -40,7 +40,7 @@ export function SignInPrompt({
             role="dialog"
             aria-modal="true"
             aria-label="Sign in"
-            className="fixed left-1/2 top-1/2 z-[var(--z-drawer)] w-[calc(100%-3rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 bg-aurum-ivory p-8 text-center shadow-[var(--shadow-float)]"
+            className="paper-surface fixed left-1/2 top-1/2 z-[var(--z-drawer)] w-[calc(100%-3rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 bg-aurum-ivory p-8 text-center shadow-[var(--shadow-float)]"
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}

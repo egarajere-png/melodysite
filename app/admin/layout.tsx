@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 // visitor only ever sees the sign-in form. The sidebar lives in (panel)/layout.tsx,
 // which wraps every page that sits behind the middleware's staff check.
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-dvh bg-aurum-ivory text-aurum-obsidian">{children}</div>;
+  return <div className="min-h-dvh bg-transparent text-aurum-obsidian">{children}</div>;
 }

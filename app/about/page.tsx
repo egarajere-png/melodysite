@@ -37,7 +37,7 @@ export default function AboutPage() {
       </section>
 
       {/* Our Story */}
-      <section className="bg-aurum-ivory py-section">
+      <section className="py-section">
         <div className="container-aurum grid gap-10 lg:grid-cols-2 lg:gap-16">
           <div className="order-2 lg:order-1">
             <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">Our Story</p>
@@ -93,7 +93,7 @@ export default function AboutPage() {
       </section>
 
       {/* Craft */}
-      <section className="bg-aurum-ivory py-section">
+      <section className="py-section">
         <div className="container-aurum grid gap-10 lg:grid-cols-2 lg:gap-16">
           <ImageReveal className="aspect-[4/5] w-full">
             <EditorialImage
@@ -128,7 +128,7 @@ export default function AboutPage() {
       </section>
 
       {/* Our Community */}
-      <section className="bg-aurum-ivory py-section">
+      <section className="py-section">
         <div className="container-aurum grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-16">
           <div>
             <p className="mb-3 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">Our Community</p>

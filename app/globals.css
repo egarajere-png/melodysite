@@ -9,22 +9,22 @@
 
 :root {
   /* -- raw brand palette (fixed — does not respond to system light/dark) -- */
-  --aurum-deep: #241338;
-  --aurum-plum: #3b1d4f;
+  --aurum-deep: #24132d;
+  --aurum-plum: #3b233e;
   --aurum-lavender: #d8c5e8;
-  --aurum-ivory: #f7f1e8;
-  --aurum-obsidian: #09070b;
-  --aurum-earth: #5a3a2a;
-  --aurum-sand: #d7c1a3;
-  --aurum-gold: #c6a15b;
+  --aurum-ivory: #f5efe3;
+  --aurum-obsidian: #20191a;
+  --aurum-earth: #49352c;
+  --aurum-sand: #dccbb3;
+  --aurum-gold: #b89a55;
 
   /* -- semantic surface tokens (light / default) -- */
   --background: var(--aurum-ivory);
   --foreground: var(--aurum-obsidian);
-  --surface: #ffffff;
-  --surface-muted: #efe7d9;
-  --border-subtle: rgba(9, 7, 11, 0.1);
-  --border-strong: rgba(9, 7, 11, 0.22);
+  --surface: #fbf8f1;
+  --surface-muted: #efe5d5;
+  --border-subtle: rgba(73, 53, 44, 0.13);
+  --border-strong: rgba(73, 53, 44, 0.25);
 
   /* -- inverse (dark section) surface tokens -- */
   --background-inverse: var(--aurum-obsidian);
@@ -104,6 +104,7 @@
 }
 
 html {
+  background-color: var(--aurum-ivory);
   scroll-behavior: smooth;
 }
 
@@ -122,7 +123,10 @@ html {
 }
 
 body {
-  background: var(--background);
+  /* The local paper image is painted once on a viewport-fixed layer. It remains
+     continuous while routes change and never tiles down long pages. */
+  background-color: var(--background);
+  isolation: isolate;
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -130,6 +134,43 @@ body {
      (unlike `hidden`) doesn't create a scroll container, so sticky/fixed elements and
      the in-page horizontal carousels keep working. */
   overflow-x: clip;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background-color: var(--aurum-ivory);
+  background-image:
+    linear-gradient(rgba(245, 239, 227, 0.62), rgba(245, 239, 227, 0.62)),
+    url("/images/brand/cotton-paper.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* Reuse the same local sheet on raised ivory surfaces such as the cart and
+   account panels so their paper treatment stays visible above the page layer. */
+.paper-surface {
+  background-image:
+    linear-gradient(rgba(245, 239, 227, 0.65), rgba(245, 239, 227, 0.65)),
+    url("/images/brand/cotton-paper.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+/* Keep the deliberately deep footer palette while carrying the same fine paper
+   grain through that contrasting surface. */
+.paper-ink {
+  background-image:
+    linear-gradient(rgba(36, 19, 45, 0.86), rgba(36, 19, 45, 0.86)),
+    url("/images/brand/cotton-paper.jpg");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 
 ::selection {

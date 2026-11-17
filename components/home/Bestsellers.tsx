@@ -15,7 +15,7 @@ export async function Bestsellers() {
   const bestsellers = await getBestsellers(4);
 
   return (
-    <section className="border-t border-[var(--border-subtle)] bg-aurum-ivory py-section">
+    <section className="border-t border-[var(--border-subtle)] py-section">
       <div className="container-aurum">
         <div className="mb-10">
           <p className="mb-2 text-xs uppercase tracking-[0.3em] text-aurum-obsidian/50">Most Loved</p>

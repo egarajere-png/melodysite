@@ -47,7 +47,7 @@ function AdminLoginForm() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-aurum-ivory px-6">
+    <div className="flex min-h-dvh items-center justify-center bg-transparent px-6">
       <form onSubmit={handleSubmit} className="w-full max-w-sm border border-aurum-obsidian/10 bg-white p-8">
         <p className="font-display text-lg tracking-widest text-aurum-obsidian">AURUM</p>
         <p className="mb-6 text-[10px] uppercase tracking-[0.3em] text-aurum-obsidian/40">Admin Sign In</p>
